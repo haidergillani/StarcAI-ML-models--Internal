@@ -1,15 +1,21 @@
-# Import the 6 scale model from FinBERT_6.py
-# Git or both?
+#Testing
 
 from FinBERT_6 import SentimentAnalysis6
 
-# Define class for a sentiment analysis interface
-class SentimentAnalysisInterface:
+#from FinBERT_3 import SentimentAnalysis3
+#from Batch_Processing_6 import BatchSentimentAnalysis6
+
+
+
+
+# Define class for a web sentiment analysis interface
+class Test:
 
     # Initialize the sentiment analysis model on class instantiation
     def __init__(self):
         self.sentiment_model = SentimentAnalysis6()
 
+    # Method to get sentences from the user until 'x' is entered
     # Method to get sentences from the user until 'x' is entered
     def get_user_sentences(self):
         sentences = []
@@ -24,9 +30,22 @@ class SentimentAnalysisInterface:
             sentences.append(sentence)
         return sentences
 
+        
+    # Method to get sentiments from the FinBERT6 model for cleaned url texts
+    def get_urls_sentiments(self, cleaned_texts):
+        
+        if not cleaned_texts:
+            raise Exception("Unable to access the provided URL. Please provide a valid URL.")
+        results = self.sentiment_model.get_sentiments(cleaned_texts)
+        return results
+    
     # Method to print sentiment analysis score for a given sentence
-    def print_sentence_score(self, sentence):
-        results = self.sentiment_model.get_sentiments(sentence)
+    def overall_sentiment_results(self, results):
+        return self.sentiment_model.sentiment_count(results)
+
+    # Method to print sentiment analysis score for a given sentence
+    def print_sentence_score(self, results):
+        
         for result in results:
             
             print(f"\n{self.counter}. Sentence: {result['sentence']}")
@@ -40,22 +59,11 @@ class SentimentAnalysisInterface:
             # Increment to the counter for the next sentence.
             self.counter += 1
 
-
     # Main method to run the interface
     def run(self):
-        while True:
-            sentences = self.get_user_sentences()
-            print("\nYour sentiment scores:")
-            self.counter = 1
-            for sentence in sentences:
-                self.print_sentence_score(sentence)
-
-            # Ask the user to continue or not
-            while True:
-                check = input("\nDo you want to run another paragraph check? (y/n): ").lower()
-                if check in ['y', 'n']:
-                    break
-                print("Please enter a valid response ('y' or 'n').")
-            # Break the loop if the user chooses not to continue
-            if check == 'n':
-                break
+        cleaned_texts = self.get_user_sentences()
+        print(cleaned_texts)
+        
+            
+web_sentiment_interface = Test()
+web_sentiment_interface.run()

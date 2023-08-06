@@ -16,6 +16,10 @@ urls = ["https://fortune.com/2023/07/03/apple-cut-vision-pro-headset-first-year-
         "https://www.cnet.com/tech/computing/why-apple-is-moving-your-health-information-to-the-ipad/",
         "https://www.forbes.com/sites/gordonkelly/2023/07/07/apple-iphone-15-pro-max-price-increase-release-new-iphones/?sh=45d5b3a9718e"]
 
-scraper = WebPageScraper(urls)
-cleaned_texts = scraper.scrape_all()
+url = "https://fortune.com/2023/07/03/apple-cut-vision-pro-headset-first-year-production-goals-manufacturers-complex-design-ft/"
+scraper_one = WebPageScraper([url])
+cleaned_texts_one = scraper_one.scrape_all()
+print("cleaned_texts_one: ", cleaned_texts_one[0])
+#scraper = WebPageScraper(urls)
+#cleaned_texts = scraper.scrape_all()
 #print(cleaned_texts[1])

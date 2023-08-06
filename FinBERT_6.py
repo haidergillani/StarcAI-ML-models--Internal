@@ -101,16 +101,20 @@ class SentimentAnalysis6(SentimentAnalysis):
         # finbert-tone uses LABEL_1 for positive, LABEL_0 for neutral, and LABEL_2 for negative
         labels = [result['label'] for result in results]
         counts = collections.Counter(labels)
+        print("\nSentiment Analysis Results: ")
+        
+        print(f"\nTotal Sentences: {len(labels)}\n")
+        
         print("Strong Positives: ", counts['Strong Positive'], round( counts['Strong Positive']/len(labels)*100, 2), "%") 
-        print("Positives: ", counts['Positive'], round( counts['Positive']/len(labels)*100,2), "%")
+        print("Positives:        ", counts['Positive'], round( counts['Positive']/len(labels)*100,2), "%")
         
         print("Strong Negatives: ", counts['Strong Negative'], round( counts['Strong Negative']/len(labels)*100,2), "%") 
-        print("Negatives: ", counts['Negative'], round(counts['Negative']/len(labels)*100,2), "%")
+        print("Negatives:        ", counts['Negative'], round(counts['Negative']/len(labels)*100,2), "%")
         
-        print("Strong Neutrals: ", counts['Strong Neutral'], round(counts['Strong Neutral']/len(labels)*100,2), "%")
-        print("Neutrals: ", counts['Neutral'], round(counts['Neutral']/len(labels)*100,2), "%")
-        
-        print("Undefined: ", counts['Undefined'], round(counts['Undefined']/len(labels)*100,2), "%")
+        print("Strong Neutrals:  ", counts['Strong Neutral'], round(counts['Strong Neutral']/len(labels)*100,2), "%")
+        print("Neutrals:         ", counts['Neutral'], round(counts['Neutral']/len(labels)*100,2), "%")
+        if 'Undefined' in counts:
+            print("Undefined:        ", counts['Undefined'], round(counts['Undefined']/len(labels)*100,2), "%")
         #Thanks mate
         #I think we can use this to get the sentiment of the whole article
         #and then we can use the sentiment to predict the stock price
@@ -156,3 +160,17 @@ class SentimentAnalysis6(SentimentAnalysis):
         plt.ylabel("Percentage (%)")
         plt.title("Sentiment of Text")
         plt.show()
+        
+"""        
+#Functions Sample:
+#For a dataframe of the results
+df = AppleNET.sentiment_df(results)
+print(df) 
+#export dataframe as csv
+df.to_csv("file_name.csv", index=False)
+
+Extra:
+AppleNET.sentiment_labels(results)
+AppleNET.sentiment_conf_scores(results)     
+AppleNET.sentiment_plots(results)
+"""
