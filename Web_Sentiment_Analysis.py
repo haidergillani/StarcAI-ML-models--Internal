@@ -73,7 +73,7 @@ class WebSentimentAnalysis:
             
             self.counter = 1
             for text in cleaned_texts:
-                results = self.get_urls_sentiments(text)                
+                results = self.get_urls_sentiments(text)
                 self.overall_sentiment_results(results)
                  
             # Ask the user if the want a sentence by sentence analysis
@@ -85,7 +85,7 @@ class WebSentimentAnalysis:
                 
             # Print detailed analysis if the user chooses yes
             if detailed == 'y':
-                print("\nHere's a detailed analysis:\n")
+                print("\nHere's a rather sentimental analysis:")
                 self.print_sentence_score(results)
 
             # Ask the user to continue for another check or not

@@ -1,10 +1,7 @@
-# Import the 6 scale model from FinBERT_6.py
-# Git or both?
-
 from FinBERT_6 import SentimentAnalysis6
 
 # Define class for a sentiment analysis interface
-class SentimentAnalysisInterface:
+class SentimentalTest:
 
     # Initialize the sentiment analysis model on class instantiation
     def __init__(self):
@@ -60,18 +57,9 @@ class SentimentAnalysisInterface:
             
             sentences = self.get_user_sentences()
             self.overall_sentiment_results(sentences)
-            
-            # Ask the user if the want a sentence by sentence analysis
-            while True:
-                detailed = input("\nDo you want a detailed sentence by sentence analysis? (y/n): ").lower()
-                if detailed in ['y', 'n']:
-                    break
-                print("Please enter a valid response ('y' or 'n').")
-                
-            # Print detailed analysis if the user chooses yes
-            if detailed == 'y':
-                print("\nHere's a rather sentimental analysis:")
-                self.print_sentence_score(sentences)
+
+            print("\nHere's a rather sentimental analysis:")
+            self.print_sentence_score(sentences)
 
             # Ask the user to continue or not
             while True:
@@ -81,4 +69,8 @@ class SentimentAnalysisInterface:
                 print("Please enter a valid response ('y' or 'n').")
             # Break the loop if the user chooses not to continue
             if check == 'n':
+                print("\nAlways happy to help!")
                 break
+            
+sentiment_interface = SentimentalTest()
+sentiment_interface.run()

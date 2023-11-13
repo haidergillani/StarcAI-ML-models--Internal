@@ -19,8 +19,28 @@ import matplotlib.pyplot as plt
 #Note: All functions in this docstring are specific to the 5 point scale
     
 class SentimentAnalysis6(SentimentAnalysis):
+    LABELS = [
+        ('Highly Confident and Optimistic', lambda confidence, optimism, pessimism, uncertainty: confidence > 0.90 and optimism > 0.90),
+        ('Confident and Optimistic',        lambda confidence, optimism, pessimism, uncertainty: confidence > 0.70 and optimism > 0.70),
+        ('Slightly Confident and Optimistic', lambda confidence, optimism, pessimism, uncertainty: confidence > 0.50 and optimism > 0.50),
+        ('Highly Uncertain and Pessimistic', lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.90 and pessimism > 0.90),
+        ('Uncertain and Pessimistic',       lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.70 and pessimism > 0.70),
+        ('Slightly Uncertain and Pessimistic', lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.50 and pessimism > 0.50),
+        ('Highly Confident',                lambda confidence, optimism, pessimism, uncertainty: confidence > 0.90),
+        ('Confident',                       lambda confidence, optimism, pessimism, uncertainty: confidence > 0.70),
+        ('Slightly Confident',              lambda confidence, optimism, pessimism, uncertainty: confidence > 0.50),
+        ('Highly Uncertain',                lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.90),
+        ('Uncertain',                       lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.70),
+        ('Slightly Uncertain',              lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.50),
+        ('Highly Optimistic',               lambda confidence, optimism, pessimism, uncertainty: optimism > 0.90),
+        ('Optimistic',                      lambda confidence, optimism, pessimism, uncertainty: optimism > 0.70),
+        ('Slightly Optimistic',             lambda confidence, optimism, pessimism, uncertainty: optimism > 0.50),
+        ('Highly Pessimistic',              lambda confidence, optimism, pessimism, uncertainty: pessimism > 0.90),
+        ('Pessimistic',                     lambda confidence, optimism, pessimism, uncertainty: pessimism > 0.70),
+        ('Slightly Pessimistic',            lambda confidence, optimism, pessimism, uncertainty: pessimism > 0.50),
+        ('Undefined',                       lambda confidence, optimism, pessimism, uncertainty: True) # Default label
+    ]
 
-    #6 point scale with probabilities        
     def get_sentiments(self, text):
         if not text:
             # If text is empty or None, raise a ValueError
@@ -81,50 +101,33 @@ class SentimentAnalysis6(SentimentAnalysis):
     #6 point scale with probabilities        
     def generate_label(self, result):
         # Given the sentiment scores, generate a label based on the defined thresholds
-        if result['Positive'] > 0.99:
-            return 'Strong Positive'
-        elif result['Positive'] > 0.5:
-            return 'Positive'
-        elif result['Positive'] > 0.10 and result['Negative'] < 0.10:
-            return 'Slightly Positive'
-        elif result['Negative'] > 0.99:
-            return 'Strong Negative'
-        elif result['Negative'] > 0.5:
-            return 'Negative'
-        elif result['Negative'] > 0.10 and result['Positive'] < 0.10:
-            return 'Slightly Negative'
-        elif result['Neutral'] > 0.99:
-            return 'Strong Neutral'
-        elif result['Neutral'] > 0.5:
-            return 'Neutral'
-        else:
-            return 'Undefined'  # Default label in case none of the conditions above are met
+        optimism = result['Positive'] - result['Negative'] + (0.15 * result['Neutral'])
+        pessimism = result['Negative'] - result['Positive'] - (0.15 * result['Neutral'])
+        confidence = result['Positive'] + 0.5 * (1 - result['Negative']) - (0.1 * result['Neutral'])
+        uncertainty = 1 - confidence
+        
+        for label, condition in self.LABELS:
+            if condition(confidence, optimism, pessimism, uncertainty):
+                return label
+            else:
+                return 'Undefined'  # Default label in case none of the conditions above are met
         
     #5 point scale with probabilities        
     def sentiment_count(self, results):
         # finbert-tone uses LABEL_1 for positive, LABEL_0 for neutral, and LABEL_2 for negative
         labels = [result['label'] for result in results]
         counts = collections.Counter(labels)
+        total_labels = len(labels)
+
         print("\nSentiment Analysis Results: ")
-        
-        print(f"\nTotal Sentences: {len(labels)}\n")
-        
-        print("Strong Positives:  ", counts['Strong Positive'], round( counts['Strong Positive']/len(labels)*100, 2), "%") 
-        print("Positives:         ", counts['Positive'], round( counts['Positive']/len(labels)*100,2), "%")
-        print("Slight Positives:  ", counts['Slightly Positive'], round( counts['Slightly Positive']/len(labels)*100,2), "%")
+        print(f"\nTotal Sentences: {total_labels}\n")
 
-        print("Strong Negatives:  ", counts['Strong Negative'], round( counts['Strong Negative']/len(labels)*100,2), "%") 
-        print("Negatives:         ", counts['Negative'], round(counts['Negative']/len(labels)*100,2), "%")
-        print("Slight Negatives:  ", counts['Slightly Negative'], round( counts['Slightly Negative']/len(labels)*100,2), "%")
+        sentiments = [sentiment for sentiment, _ in self.LABELS]
 
-        print("Strong Neutrals:   ", counts['Strong Neutral'], round(counts['Strong Neutral']/len(labels)*100,2), "%")
-        print("Neutrals:          ", counts['Neutral'], round(counts['Neutral']/len(labels)*100,2), "%")
-        if 'Undefined' in counts:
-            print("Undefined:      ", counts['Undefined'], round(counts['Undefined']/len(labels)*100,2), "%")
-        #Thanks mate
-        #I think we can use this to get the sentiment of the whole article
-        #and then we can use the sentiment to predict the stock price
-        
+        # Using list comprehension to print results
+        [print(f"{sentiment:<18}: {counts.get(sentiment, 0)} {round(counts.get(sentiment, 0) / total_labels * 100, 2)} %") for sentiment in sentiments if counts.get(sentiment, 0) > 0]
+
+            
         
     def sentiment_prob_scores(self, results):
         positives = [result['Positive'] for result in results]
