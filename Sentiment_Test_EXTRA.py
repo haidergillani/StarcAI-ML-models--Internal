@@ -31,6 +31,9 @@ class SentimentalTest:
     # Method to print sentiment analysis score for given sentences
     def overall_sentiment_results(self, text):
         results = self.sentiment_model.get_sentiments(text)
+        # to print the main results of the FinBERT
+        print("This is the overall results to help you understand the datat we're working with:")
+        print(results)
         return self.sentiment_model.sentiment_count(results)
 
     # Method to print sentiment analysis score for a given sentence

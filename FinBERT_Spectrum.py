@@ -9,6 +9,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+# investor Paranoia
+# investor Confidence
+# Neutral
+# Specifc FLS
+# Non-specific FLS
+
+
 """
     FinBERT: Financial Sentiment Analysis with BERT Fine-Tuned
     
@@ -19,19 +26,26 @@ import matplotlib.pyplot as plt
 #Note: All functions in this docstring are specific to the 5 point scale
     
 class SentimentAnalysis6(SentimentAnalysis):
-    # p = positive, n = negative, nu = neutral
     LABELS = [
-        ('Strong Positive', lambda p, n, nu: p > 0.90),
-        ('Positive',        lambda p, n, nu: p > 0.70),
-        ('Slightly Positive', lambda p, n, nu: p > 0.50),
-        ('Strong Negative', lambda p, n, nu: n > 0.90),
-        ('Negative', lambda p, n, nu: n > 0.70),
-        ('Slightly Negative', lambda p, n, nu: n > 0.50),
-        ('Neutral and Slightly Positive', lambda p, n, nu: nu > p and nu > n and p > n and p > 0.10),
-        ('Neutral and Slightly Negative', lambda p, n, nu: nu > p and nu > n and n > p and n > 0.10),
-        ('Strong Neutral', lambda p, n, nu: nu > 0.90),
-        ('Neutral', lambda p, n, nu: nu > 0.70),
-        ('Slightly Neutral', lambda p, n, nu: nu > 0.50 or nu < 0.50 and p < 0.5 and n < 0.5),
+        ('Highly Confident and Optimistic', lambda confidence, optimism, pessimism, uncertainty: confidence > 0.90 and optimism > 0.90),
+        ('Confident and Optimistic',        lambda confidence, optimism, pessimism, uncertainty: confidence > 0.70 and optimism > 0.70),
+        ('Slightly Confident and Optimistic', lambda confidence, optimism, pessimism, uncertainty: confidence > 0.50 and optimism > 0.50),
+        ('Highly Uncertain and Pessimistic', lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.90 and pessimism > 0.90),
+        ('Uncertain and Pessimistic',       lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.70 and pessimism > 0.70),
+        ('Slightly Uncertain and Pessimistic', lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.50 and pessimism > 0.50),
+        ('Highly Confident',                lambda confidence, optimism, pessimism, uncertainty: confidence > 0.90),
+        ('Confident',                       lambda confidence, optimism, pessimism, uncertainty: confidence > 0.70),
+        ('Slightly Confident',              lambda confidence, optimism, pessimism, uncertainty: confidence > 0.50),
+        ('Highly Uncertain',                lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.90),
+        ('Uncertain',                       lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.70),
+        ('Slightly Uncertain',              lambda confidence, optimism, pessimism, uncertainty: uncertainty > 0.50),
+        ('Highly Optimistic',               lambda confidence, optimism, pessimism, uncertainty: optimism > 0.90),
+        ('Optimistic',                      lambda confidence, optimism, pessimism, uncertainty: optimism > 0.70),
+        ('Slightly Optimistic',             lambda confidence, optimism, pessimism, uncertainty: optimism > 0.50),
+        ('Highly Pessimistic',              lambda confidence, optimism, pessimism, uncertainty: pessimism > 0.90),
+        ('Pessimistic',                     lambda confidence, optimism, pessimism, uncertainty: pessimism > 0.70),
+        ('Slightly Pessimistic',            lambda confidence, optimism, pessimism, uncertainty: pessimism > 0.50),
+        ('Undefined',                       lambda confidence, optimism, pessimism, uncertainty: True) # Default label
     ]
 
     def get_sentiments(self, text):
@@ -93,15 +107,17 @@ class SentimentAnalysis6(SentimentAnalysis):
    
     #6 point scale with probabilities        
     def generate_label(self, result):
-        
-        positive = result['Positive']
-        negative = result['Negative']
-        neutral = result['Neutral']
+        # Given the sentiment scores, generate a label based on the defined thresholds
+        optimism = result['Positive'] - result['Negative'] + (0.15 * result['Neutral'])
+        pessimism = result['Negative'] - result['Positive'] - (0.15 * result['Neutral'])
+        confidence = result['Positive'] + 0.5 * (1 - result['Negative']) - (0.1 * result['Neutral'])
+        uncertainty = 1 - confidence
         
         for label, condition in self.LABELS:
-            if condition(positive, negative, neutral):
+            if condition(confidence, optimism, pessimism, uncertainty):
                 return label
-        return 'Undefined'  # Default label in case none of the conditions above are met
+            else:
+                return 'Undefined'  # Default label in case none of the conditions above are met
         
     #5 point scale with probabilities        
     def sentiment_count(self, results):
