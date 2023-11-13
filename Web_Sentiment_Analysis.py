@@ -33,13 +33,12 @@ class WebSentimentAnalysis:
 
         scraper = WebPageScraper(urls)
         cleaned_texts = scraper.scrape_all()
+        if not cleaned_texts:
+            raise Exception("Unable to access the provided URL. Please provide a valid URL.")
         return cleaned_texts
         
     # Method to get sentiments from the FinBERT6 model for cleaned url texts
     def get_urls_sentiments(self, cleaned_texts):
-        
-        if not cleaned_texts:
-            raise Exception("Unable to access the provided URL. Please provide a valid URL.")
         results = self.sentiment_model.get_sentiments(cleaned_texts)
         return results
     
@@ -69,7 +68,7 @@ class WebSentimentAnalysis:
             cleaned_texts = self.get_user_urls_text()
 
             if not cleaned_texts:
-                print("\nNo URL provided. Please provdide a valid URL.")
+                print("\nNo URL provided. Please provide a valid URL.")
                 continue
             
             self.counter = 1

@@ -18,7 +18,7 @@ while True:
             break
         print("Please enter a valid response ('1' or '2').")
     # Break the loop if the user chooses not to continue    
-    
+
     if choice == '1':
         web_sentiment_interface.run()
         

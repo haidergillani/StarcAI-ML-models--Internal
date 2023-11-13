@@ -85,10 +85,14 @@ class SentimentAnalysis6(SentimentAnalysis):
             return 'Strong Positive'
         elif result['Positive'] > 0.5:
             return 'Positive'
+        elif result['Positive'] > 0.10 and result['Negative'] < 0.10:
+            return 'Slightly Positive'
         elif result['Negative'] > 0.99:
             return 'Strong Negative'
         elif result['Negative'] > 0.5:
             return 'Negative'
+        elif result['Negative'] > 0.10 and result['Positive'] < 0.10:
+            return 'Slightly Negative'
         elif result['Neutral'] > 0.99:
             return 'Strong Neutral'
         elif result['Neutral'] > 0.5:
@@ -105,16 +109,18 @@ class SentimentAnalysis6(SentimentAnalysis):
         
         print(f"\nTotal Sentences: {len(labels)}\n")
         
-        print("Strong Positives: ", counts['Strong Positive'], round( counts['Strong Positive']/len(labels)*100, 2), "%") 
-        print("Positives:        ", counts['Positive'], round( counts['Positive']/len(labels)*100,2), "%")
-        
-        print("Strong Negatives: ", counts['Strong Negative'], round( counts['Strong Negative']/len(labels)*100,2), "%") 
-        print("Negatives:        ", counts['Negative'], round(counts['Negative']/len(labels)*100,2), "%")
-        
-        print("Strong Neutrals:  ", counts['Strong Neutral'], round(counts['Strong Neutral']/len(labels)*100,2), "%")
-        print("Neutrals:         ", counts['Neutral'], round(counts['Neutral']/len(labels)*100,2), "%")
+        print("Strong Positives:  ", counts['Strong Positive'], round( counts['Strong Positive']/len(labels)*100, 2), "%") 
+        print("Positives:         ", counts['Positive'], round( counts['Positive']/len(labels)*100,2), "%")
+        print("Slight Positives:  ", counts['Slightly Positive'], round( counts['Slightly Positive']/len(labels)*100,2), "%")
+
+        print("Strong Negatives:  ", counts['Strong Negative'], round( counts['Strong Negative']/len(labels)*100,2), "%") 
+        print("Negatives:         ", counts['Negative'], round(counts['Negative']/len(labels)*100,2), "%")
+        print("Slight Negatives:  ", counts['Slightly Negative'], round( counts['Slightly Negative']/len(labels)*100,2), "%")
+
+        print("Strong Neutrals:   ", counts['Strong Neutral'], round(counts['Strong Neutral']/len(labels)*100,2), "%")
+        print("Neutrals:          ", counts['Neutral'], round(counts['Neutral']/len(labels)*100,2), "%")
         if 'Undefined' in counts:
-            print("Undefined:        ", counts['Undefined'], round(counts['Undefined']/len(labels)*100,2), "%")
+            print("Undefined:      ", counts['Undefined'], round(counts['Undefined']/len(labels)*100,2), "%")
         #Thanks mate
         #I think we can use this to get the sentiment of the whole article
         #and then we can use the sentiment to predict the stock price
