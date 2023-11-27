@@ -39,10 +39,6 @@ class SentimentAnalysis3(SentimentAnalysis):
         
         print("Neutrals: ", counts['Neutral'], round(counts['Neutral']/len(labels), 2)*100,"%")
         
-        #Thanks mate
-        #I think we can use this to get the sentiment of the whole article
-        #and then we can use the sentiment to predict the stock price   
-        
     # for a 3 point label
     def sentiment_conf_scores(self, results):
         scores = [result['score'] for result in results]

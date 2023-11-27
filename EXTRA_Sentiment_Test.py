@@ -1,11 +1,11 @@
-from FinBERT_6 import SentimentAnalysis6
+from Tone_Model import ToneModel
 
 # Define class for a sentiment analysis interface
 class SentimentalTest:
 
     # Initialize the sentiment analysis model on class instantiation
     def __init__(self):
-        self.sentiment_model = SentimentAnalysis6()
+        self.tone_model = ToneModel()
 
     # Method to get sentences from the user until 'x' is entered
     def get_user_sentences(self):
@@ -30,20 +30,20 @@ class SentimentalTest:
 
     # Method to print sentiment analysis score for given sentences
     def overall_sentiment_results(self, text):
-        results = self.sentiment_model.get_sentiments(text)
-        # to print the main results of the FinBERT
+        results = self.tone_model.get_sentiments(text)
+        # to print the main results of the ToneModel
         print("This is the overall results to help you understand the datat we're working with:")
         print(results)
-        return self.sentiment_model.sentiment_count(results)
+        return self.tone_model.sentiment_count(results)
 
     # Method to print sentiment analysis score for a given sentence
     def print_sentence_score(self, text):
-        results = self.sentiment_model.get_sentiments(text)
+        results = self.tone_model.get_sentiments(text)
         self.counter = 1
         for result in results:
             
             print(f"\n{self.counter}. Sentence: {result['sentence']}")
-            print(f"Label: '{result['label']}' ")
+            print(f"Label: '{result['LabelTone']}' ")
             
             print("\nBreakdown:")
             # Loop through the sentiment types and print the score for each

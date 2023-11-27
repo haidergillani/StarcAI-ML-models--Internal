@@ -2,7 +2,6 @@ from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassifica
 #from keras.preprocessing.sequence import pad_sequences
 #from torch.nn.functional import softmax
 
-
 import nltk
 #import torch
 import collections

@@ -4,6 +4,13 @@ from Sentiment_FLS_join import DataMerger
 
 from Web_Scrapping_Text_Cleaning import WebPageScraper
 
+"""
+# for a data frame of sentence results:
+df = self.tone_model.sentiment_df(results)
+print(df)
+"""
+
+
 # Define class for a web sentiment analysis interface
 class WebSentimentAnalysis(DataMerger):
 
@@ -95,18 +102,20 @@ class WebSentimentAnalysis(DataMerger):
                 print("\nNo URL provided. Please provide a valid URL.")
                 continue
             
-            self.urlcounter = 1
+            all_results = []
+            
             for text in cleaned_texts:
-                print(f"\nURL {self.urlcounter} Analysis:")  
                 merged_result = self.get_urls_sentiments(text)
-                self.overall_sentiment_results(merged_result)
+                all_results.extend(merged_result)  # Combine results from each URL
+            
+            print(all_results)
+            self.overall_sentiment_results(all_results)
                  
-                # Print detailed analysis if the user wants
-                detailed = self.user_prompt("\nDo you want a detailed sentence by sentence analysis? (y/n): ", ['y', 'n'])
-                if detailed == 'y':
-                    self.print_sentence_score(merged_result)
-                self.urlcounter += 1
-                    
+            # Print detailed analysis if the user wants
+            detailed = self.user_prompt("\nDo you want a detailed sentence by sentence analysis? (y/n): ", ['y', 'n'])
+            if detailed == 'y':
+                self.print_sentence_score(all_results)
+                
             # Ask the user whether to continue for another analysis or not
             check = self.user_prompt("\nDo you want to run another web check? (y/n): ", ['y', 'n'])
             if check == 'n':
