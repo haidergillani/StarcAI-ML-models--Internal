@@ -1,4 +1,4 @@
-# STARC App
+# STARC App - Finalized backend version
 
 from Sentiment_Analysis_Interface import SentimentAnalysisInterface
 from Web_Sentiment_Analysis import WebSentimentAnalysis

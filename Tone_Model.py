@@ -112,14 +112,11 @@ class ToneModel(SentimentAnalysis):
         counts = collections.Counter(labels)
         total_labels = len(labels)
 
-        print("\nOverall Sentiment Analysis Results: ")
-        print(f"\nTotal Sentences: {total_labels}\n")
-
         sentiments = [sentiment for sentiment, _ in self.LABELS]
         for sentiment in sentiments:
             if counts.get(sentiment, 0) > 0:
                 # Using list comprehension to print results
-                print(f"{sentiment:<30}: {counts[sentiment]} {round(counts[sentiment] / total_labels * 100, 2)} %")
+                print(f"{sentiment:<50}: {counts[sentiment]} {round(counts[sentiment] / total_labels * 100, 2)} %")
             
     def sentiment_prob_scores(self, results):
         positives = [result['Positive'] for result in results]

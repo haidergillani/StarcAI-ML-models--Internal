@@ -106,7 +106,7 @@ class FLSModel:
         for sentiment in sentimentsFLS:
             if counts.get(sentiment, 0) > 0:
                 # Using list comprehension to print results
-                print(f"{sentiment:<30}: {counts[sentiment]} {round(counts[sentiment] / total_labels * 100, 2)} %")
+                print(f"{sentiment:<50}: {counts[sentiment]} {round(counts[sentiment] / total_labels * 100, 2)} %")
 
             
 # Example usage
