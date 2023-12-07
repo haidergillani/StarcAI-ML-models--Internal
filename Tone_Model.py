@@ -119,11 +119,22 @@ class ToneModel(SentimentAnalysis):
                 print(f"{sentiment:<50}: {counts[sentiment]} {round(counts[sentiment] / total_labels * 100, 2)} %")
             
     def sentiment_prob_scores(self, results):
+        if results is None:
+            print("No results to process.")
+            return
+
+        # Extracting individual probabilities for each sentiment
         positives = [result['Positive'] for result in results]
         negatives = [result['Negative'] for result in results]
         neutrals = [result['Neutral'] for result in results]
-        scores = [positives, negatives, neutrals]
-        print(scores)
+
+        # Calculating the sum of probabilities for each sentiment
+        sum_positives = sum(positives)
+        sum_negatives = sum(negatives)
+        sum_neutrals = sum(neutrals)
+
+        # Return these sums for probabiity scores
+        return sum_positives, sum_negatives, sum_neutrals
     
     def sentiment_df(self, results):
         # create a dataframe with columns: sentence, label, score

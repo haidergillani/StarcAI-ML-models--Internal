@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request
 import openai
 import os
-from conversion import code_convert
 
 key = os.environ['API']
 openai.api_key = key

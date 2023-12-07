@@ -1,11 +1,11 @@
-# Import the tone scale model from ToneModel.py
+# STARC Model that will receive requests and give overall scoring
 
 from Tone_Model import ToneModel
 from FLS_Model import FLSModel
 from Sentiment_FLS_join import DataMerger
         
 # Define class for a sentiment analysis interface
-class SentimentAnalysisInterface(DataMerger):
+class CloudSentimentAnalysis(DataMerger):
 
     # Initialize the sentiment analysis model on class instantiation
     def __init__(self):
@@ -31,28 +31,12 @@ class SentimentAnalysisInterface(DataMerger):
             self.tone_model = ToneModel()
         if not self.FLS_model:
             self.FLS_model = FLSModel()
-            
-    # Method to get sentences from the user until 'x' is entered
-    def get_user_sentences(self):
-        print("\nPlease enter your sentences for scoring. Press Enter twice to finish input:\n")
-        text = ""
-        while True:
-            try:
-                sentence = input()
-                if sentence.strip() == '':
-                    print('-- Text stored succesfully --\n')
-                    break
-                text += sentence + "\n"
-            except EOFError:
-                break
-        return text.strip()
 
     # Method to get sentiments from the Tone and FLS models for user text
     def get_sentence_sentiments(self, text):
         SentimentData = self.tone_model.get_sentiments(text)
         FLSData = self.FLS_model.get_sentimentsFLS(text)
         merged_result = self.merge_data(SentimentData, FLSData)
-        
         return merged_result
     
     def sentiment_probability_scores(self, merged_result):
@@ -82,9 +66,7 @@ class SentimentAnalysisInterface(DataMerger):
     # Method to print overall sentiment analysis score for entire text
     def overall_sentiment_results(self, merged_result):
         overall_score = self.overall_text_sentiment_scores(merged_result)
-        print("\nOverall Sentiment Analysis Results:")
         print(f"\nOverall Text Score: {round(overall_score,2)}%\n")
-        print(f"\nTotal Sentences: {len(merged_result)}\n")
         
         sum_positives, sum_neutrals, sum_negatives, sum_specific_fls, sum_non_specific_fls, sum_not_fls = self.sentiment_probability_scores(merged_result)    
         
@@ -114,35 +96,6 @@ class SentimentAnalysisInterface(DataMerger):
             
         return self.tone_model.sentiment_count(merged_result), self.FLS_model.sentiment_countFLS(merged_result)
 
-    # Method to print sentiment analysis score for a given sentence
-    def print_sentence_scores(self, merged_result):
-
-        self.counter = 1
-        for result in merged_result:
-            
-            print(f"\n{self.counter}. Sentence: {result['sentence']}")
-            '''
-        REVIEW:
-        # The maximum possible score for every sentence
-        max_sentence_score = 2.0
-        for sentence in merged_result:
-            # Calculate the normalized score for each sentence
-            normalized_score = self.calculate_overall_sentence_score(sentence) / max_sentence_score * 100
-            
-            print(f"Normalized Sentence Score: {normalized_score}")  # Need this with every sentence
-            '''
-            # Print overall sentence sentiment
-            print(f"\nOverall: '{result['LabelTone']}' and '{result['LabelFLS']}'")
-            
-            print("\nBreakdown:")
-            # Loop through the sentiment types and print the score for each, upto 3 decimal points
-            for sentiment in ['Positive', 'Negative', 'Neutral', 'Specific FLS', 'Non-specific FLS', 'Not FLS']:
-                score = int(float(result[sentiment]) * 100 * 1000) / 1000.0
-                if score > 0.0005:  # Only print if the score is greater than 0.0005%
-                    print(f"{sentiment:<20}: {score} %")
-             
-            # Increment to the counter for the next sentence.
-            self.counter += 1
 
     # Function to calculate overall sentence score
     def calculate_overall_sentence_score(self, sentence_data):
@@ -159,40 +112,24 @@ class SentimentAnalysisInterface(DataMerger):
         # Calculate overall score for the text
         return sum(sentence_scores) / len(sentence_scores)
 
-
-    # Method to prompt the user whether to re-run or not
-    def user_prompt(self, prompt, valid_responses):
-        while True:
-            response = input(prompt).lower()
-            if response in valid_responses:
-                return response
-            print("Please enter a valid response: " + ', '.join(valid_responses))
-            
     # Main method to run the interface
-    def run(self):
+    def cloud_run(self, user_input):
         self.load_models()  # Lazy load models
-        while True:
-            sentences = self.get_user_sentences()
-            merged_result  = self.get_sentence_sentiments(sentences)
-            
-            self.overall_sentiment_results(merged_result)
-            self.overall_text_sentiment_scores(merged_result)
-            # Print detailed analysis if the user wants
-            detailed = self.user_prompt("\nDo you want a detailed sentence by sentence analysis? (y/n): ", ['y', 'n'])
-            if detailed == 'y':
-                self.print_sentence_scores(merged_result)
+        merged_result  = self.get_sentence_sentiments(user_input)
+        self.overall_sentiment_results(merged_result)
 
-            # Ask the user whether to continue for another analysis or not
-            check = self.user_prompt("\nDo you want to run another paragraph check? (y/n): ", ['y', 'n'])
-            if check == 'n':
-                break
 
 # Main guard
 if __name__ == "__main__":
-    sentiment_interface = SentimentAnalysisInterface()
-    sentiment_interface.run()
+    cloud_sentiment_analysis = CloudSentimentAnalysis()
+    user_text = ' We have successfully optimized our operations. We now expect the age of our fleet to enhance availability and reliability due to reduced downtime for repairs.'
+    user_text_pessimistic = 'We expected economic weakness in some emerging markets. This turned out to have a significantly greater impact than we had projected. Based on these estimates, our revenue will be lower than our original guidance for the quarter, with other items remaining broadly in line with our guidance. As we exit a challenging quarter, we may still find a way to retain the strength of our business. We use periods of adversity to re-examine our approach and use our flexibility, adaptability, and creativity to emerge better afterward.'
+    user_text_optimistic = 'We had anticipated a slightly shaky economic growth in select emerging markets. This had a greater impact than we were previously expecting. However, while we anticipate a slight dip in quarterly revenue, other items remain broadly aligned with our forecast, which is promising. As we exit a challenging quarter, we are as confident as ever in the fundamental strength of our business. We have always used periods of adversity to re-examine our approach, to take advantage of our culture of flexibility, adaptability, and creativity, and to emerge better as a result.'
+
+    cloud_sentiment_analysis.cloud_run(user_text_pessimistic)
+    cloud_sentiment_analysis.cloud_run(user_text_optimistic)
     
-# Example Output:
+# Example Output -- merged_result:
 # We have successfully optimized our operations. We now expect the age of our fleet to enhance availability and reliability due to reduced downtime for repairs.
 
 # [{'sentence': 'We have successfully optimized our operations.', 
