@@ -1,7 +1,7 @@
 
 from torch.nn.functional import softmax
 
-from FinBERT_Model import SentimentAnalysis
+from FinBERT_Tone_base import SentimentAnalysis
 
 import torch
 import collections

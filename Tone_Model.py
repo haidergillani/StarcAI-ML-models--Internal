@@ -1,11 +1,15 @@
 import torch
-import collections
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 from torch.nn.functional import softmax
-from FinBERT_Model import SentimentAnalysis
+from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
+#from keras.preprocessing.sequence import pad_sequences
+#from torch.nn.functional import softmax
+import collections
 
+import os
+import nltk
+
+# Setting the NLTK data path to the local 'nltk_data' directory
+nltk.data.path.append(os.path.join(os.getcwd(), 'nltk_data'))
 
 """
     FinBERT: Financial Sentiment Analysis with BERT Fine-Tuned
@@ -15,8 +19,17 @@ from FinBERT_Model import SentimentAnalysis
 
 #Code Below for 6 point scale with probabilities
 #Note: All functions in this docstring are specific to the 5 point scale
-    
-class ToneModel(SentimentAnalysis):
+
+class ToneModel():
+    def __init__(self, model_name='yiyanghkust/finbert-tone', num_labels=3):
+        # 'yiyanghkust/finbert-fls' for forward-looking statements (finetuned on 3500 sentences)
+        # 'ProsusAI/finbert' for original FinBERT model
+        # 'yiyanghkust/finbert-tone' for finbert-tone (finetuned on 10,000 sentences)
+        
+        self.finbert = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+        self.tokenizer = BertTokenizer.from_pretrained(model_name)
+        self.nlp = pipeline("sentiment-analysis", model=self.finbert, tokenizer=self.tokenizer)
+        
     # p = positive, n = negative, nu = neutral
     LABELS = [
         ('Strong Positive', lambda p, n, nu: p > 0.90),
@@ -32,14 +45,21 @@ class ToneModel(SentimentAnalysis):
         ('Slightly Neutral', lambda p, n, nu: nu > 0.50 or nu < 0.50 and p < 0.5 and n < 0.5),
     ]
 
+    def tokenize(self, text):
+        # text is a list of sentences
+        # tokenize the text into sentences for finbert-tone model
+        text = nltk.tokenize.sent_tokenize(text)
+        return text
+    
     def get_sentiments(self, text):
-        if not text:
+        sentences = self.tokenize(text)
+        if not sentences:
             # If text is empty or None, raise a ValueError
-            raise ValueError("Input text cannot be empty or None.")
+            raise ValueError("Sentences is not working text cannot be empty or None.")
 
         try:
             # Tokenize the text into sentences
-            sentences = self.tokenize(text)
+            #sentences = self.tokenize(text)
 
             # Preprocessing a batch of sentences for input into transformer-based FinBERT 
             # Use the tokenizer to encode all the sentences at once
@@ -85,8 +105,7 @@ class ToneModel(SentimentAnalysis):
             return results
 
         except Exception as e:
-            print("An error occurred during model inference: ", str(e))
-            return None
+            raise ValueError("Error processing input text. Please ensure it is a valid string.") from e
 
    
     # label generation with probabilities        
@@ -135,7 +154,7 @@ class ToneModel(SentimentAnalysis):
 
         # Return these sums for probabiity scores
         return sum_positives, sum_negatives, sum_neutrals
-    
+'''
     def sentiment_df(self, results):
         # create a dataframe with columns: sentence, label, score
         data = {'sentence': [], 'LabelTone': [], 'positive': [], 'negative': [], 'neutral': []}
@@ -170,7 +189,8 @@ class ToneModel(SentimentAnalysis):
         plt.title("Sentiment of Text")
         plt.show()
    
-   
+'''
+ 
 # Example usage
 if __name__ == "__main__":
     sentiment_analyzer = ToneModel()
@@ -181,21 +201,4 @@ if __name__ == "__main__":
         sentiment_analyzer.sentiment_count(results)
         choice = input("Continue? (y/n): ")
         if choice.lower() != 'y':
-            break
-
-# We have successfully optimized our operations. We now expect the age of our fleet to enhance availability and reliability due to reduced downtime for repairs.
-     
-     
-"""
-#Functions Sample:
-#For a dataframe of the results
-df = AppleNET.sentiment_df(results)
-print(df) 
-#export dataframe as csv
-df.to_csv("file_name.csv", index=False)
-
-Extra:
-AppleNET.sentiment_labels(results)
-AppleNET.sentiment_conf_scores(results)     
-AppleNET.sentiment_plots(results)
-"""
+            break    

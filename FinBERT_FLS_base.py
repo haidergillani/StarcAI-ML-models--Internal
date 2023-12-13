@@ -1,7 +1,7 @@
 from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
+import os
 import nltk
 import collections
-
 
 class FLSModel:
     def __init__(self, model_name = 'yiyanghkust/finbert-fls', num_labels=3):

@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
 import torch
+import os
 import nltk
 import collections
 from torch.nn.functional import softmax
@@ -78,8 +79,7 @@ class FLSModel:
             return results
         
         except Exception as e:
-            print(f"An error occurred during model inference: {e}")
-            return None
+            raise ValueError("No valid text to process.")
         
     def generate_label(self, result):
         

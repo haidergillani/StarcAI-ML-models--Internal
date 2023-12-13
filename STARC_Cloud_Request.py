@@ -9,8 +9,8 @@ class CloudSentimentAnalysis(DataMerger):
 
     # Initialize the sentiment analysis model on class instantiation
     def __init__(self):
-        self.tone_model = None
-        self.FLS_model = None
+        self.tone_model = ToneModel()
+        self.FLS_model = FLSModel()
         
     # Define weights for each label
     weights = {
@@ -24,13 +24,6 @@ class CloudSentimentAnalysis(DataMerger):
         'Non-specific FLS': 0.0,      # Least desirable FLS
         'Not FLS': 1.0                # Not a FLS
     }
-
-    # Lazy Load the models
-    def load_models(self):
-        if not self.tone_model:
-            self.tone_model = ToneModel()
-        if not self.FLS_model:
-            self.FLS_model = FLSModel()
 
     # Method to get sentiments from the Tone and FLS models for user text
     def get_sentence_sentiments(self, text):
@@ -66,7 +59,6 @@ class CloudSentimentAnalysis(DataMerger):
     # Method to print overall sentiment analysis score for entire text
     def overall_sentiment_results(self, merged_result):
         overall_score = self.overall_text_sentiment_scores(merged_result)
-        print(f"\nOverall Text Score: {round(overall_score,2)}%\n")
         
         sum_positives, sum_neutrals, sum_negatives, sum_specific_fls, sum_non_specific_fls, sum_not_fls = self.sentiment_probability_scores(merged_result)    
         
@@ -90,12 +82,11 @@ class CloudSentimentAnalysis(DataMerger):
         confidence_percentage = (sum_for_confidence / total_score_for_confidence) * 100
         specific_fls_percentage = (sum_specific_fls / total_scores_fls) * 100
 
-        print(f"Investor Optimism: {optimism_percentage:.2f}%")
-        print(f"Investor Confidence: {confidence_percentage:.2f}%")
-        print(f"Strategic Projections: {specific_fls_percentage:.2f}%\n")
-            
-        return self.tone_model.sentiment_count(merged_result), self.FLS_model.sentiment_countFLS(merged_result)
+        # Add these to a list of sentiments
+        sentiments = [round(overall_score,2), round(optimism_percentage,2), round(confidence_percentage,2), round(specific_fls_percentage,2)]
 
+        # Return the list of sentiment scores
+        return sentiments    
 
     # Function to calculate overall sentence score
     def calculate_overall_sentence_score(self, sentence_data):
@@ -114,9 +105,8 @@ class CloudSentimentAnalysis(DataMerger):
 
     # Main method to run the interface
     def cloud_run(self, user_input):
-        self.load_models()  # Lazy load models
         merged_result  = self.get_sentence_sentiments(user_input)
-        self.overall_sentiment_results(merged_result)
+        return self.overall_sentiment_results(merged_result)
 
 
 # Main guard
@@ -126,8 +116,8 @@ if __name__ == "__main__":
     user_text_pessimistic = 'We expected economic weakness in some emerging markets. This turned out to have a significantly greater impact than we had projected. Based on these estimates, our revenue will be lower than our original guidance for the quarter, with other items remaining broadly in line with our guidance. As we exit a challenging quarter, we may still find a way to retain the strength of our business. We use periods of adversity to re-examine our approach and use our flexibility, adaptability, and creativity to emerge better afterward.'
     user_text_optimistic = 'We had anticipated a slightly shaky economic growth in select emerging markets. This had a greater impact than we were previously expecting. However, while we anticipate a slight dip in quarterly revenue, other items remain broadly aligned with our forecast, which is promising. As we exit a challenging quarter, we are as confident as ever in the fundamental strength of our business. We have always used periods of adversity to re-examine our approach, to take advantage of our culture of flexibility, adaptability, and creativity, and to emerge better as a result.'
 
-    cloud_sentiment_analysis.cloud_run(user_text_pessimistic)
-    cloud_sentiment_analysis.cloud_run(user_text_optimistic)
+    print(cloud_sentiment_analysis.cloud_run(user_text_pessimistic))
+    #cloud_sentiment_analysis.cloud_run(user_text_optimistic)
     
 # Example Output -- merged_result:
 # We have successfully optimized our operations. We now expect the age of our fleet to enhance availability and reliability due to reduced downtime for repairs.

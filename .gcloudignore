@@ -1,0 +1,50 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore, with the addition of
+# "#!include" directives (which insert the entries of the given .gitignore-style
+# file at that point).
+#
+# For more information, run:
+#   $ gcloud topic gcloudignore
+
+# nltk_data directory is intentionally not ignored to include it in deployment
+# nltk_data/
+
+.gcloudignore
+.git
+.gitignore
+
+# Ignore node_modules
+node_modules
+
+# Ignore virtual environment directories
+venv/
+.env/
+.venv/
+
+# Ignore Python cache and bytecode files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore other unnecessary files
+.DS_Store
+*.log
+
+# Add the Python files we want to ignore for Google Cloud Deployment
+Dataset.py
+EXTRA_FinBERT_MultiSentiments.py
+EXTRA_Sentiment_Test.py
+FinBERT_FLS_base.py
+FinBERT_Tone_base.py
+maine.py
+mtest_cloud.py
+processing.py
+Sentiment_Analysis_Interface.py
+STARC_App.py
+Training_Web_Sentiment_Analysis.py
+Web_Scrapping_Text_Cleaning.py
+Web_Sentiment_Analysis.py
+
+# Add any other directories or files specific to your project that should not be deployed
+# e.g., local configuration files, test data, etc.

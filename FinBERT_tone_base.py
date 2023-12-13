@@ -1,12 +1,29 @@
-from FinBERT_Model import SentimentAnalysis
-
+from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
+#from keras.preprocessing.sequence import pad_sequences
+#from torch.nn.functional import softmax
+import nltk
+#import torch
 import collections
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-class SentimentAnalysis3(SentimentAnalysis):
-
+class SentimentAnalysis:
+    def __init__(self, model_name='yiyanghkust/finbert-tone', num_labels=3):
+        # 'yiyanghkust/finbert-fls' for forward-looking statements (finetuned on 3500 sentences)
+        # 'ProsusAI/finbert' for original FinBERT model
+        # 'yiyanghkust/finbert-tone' for finbert-tone (finetuned on 10,000 sentences)
+        
+        self.finbert = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+        self.tokenizer = BertTokenizer.from_pretrained(model_name)
+        self.nlp = pipeline("sentiment-analysis", model=self.finbert, tokenizer=self.tokenizer)
+    
+    def tokenize(self, text):
+        # text is a list of sentences
+        # tokenize the text into sentences for finbert-tone model
+        text = nltk.tokenize.sent_tokenize(text)
+        return text
+        
     #Normal on a 3 scale without probabilities
     def get_sentiments(self, text):
         if not text:
@@ -28,6 +45,10 @@ class SentimentAnalysis3(SentimentAnalysis):
             print("An error occurred during model inference: ", str(e))
             return None
     
+    def sentiment_labels(self, results):
+        labels = [result['label'] for result in results]
+        print(labels)
+        
     # for a 3 point label scale    
     def sentiment_count(self, results):
         # finbert-tone uses LABEL_1 for positive, LABEL_0 for neutral, and LABEL_2 for negative
@@ -55,24 +76,3 @@ class SentimentAnalysis3(SentimentAnalysis):
 
         df = pd.DataFrame(data)
         return df
-    
-    def sentiment_plots(self, results):
-        # finbert-tone uses LABEL_1 for positive, LABEL_0 for neutral, and LABEL_2 for negative
-        labels = [result['label'] for result in results]
-        counts = collections.Counter(labels)
-        
-        #Plot sentiment
-        plt.figure(figsize=(8, 6))
-        plt.bar(counts.keys(), counts.values(), color=['#1F77B4', '#2CA02C', '#FF7F0E'])
-        plt.xlabel("Sentiment Label")
-        plt.ylabel("Count")
-        plt.title("Sentiment of Text")
-        plt.show()
-        
-        #Plot sentiment in percentage
-        plt.figure(figsize=(8, 6))
-        plt.bar(counts.keys(), (np.array(list(counts.values()))/len(labels)) * 100, color=['#1F77B4', '#2CA02C', '#FF7F0E'])
-        plt.xlabel("Sentiment Label")
-        plt.ylabel("Percentage (%)")
-        plt.title("Sentiment of Text")
-        plt.show()
