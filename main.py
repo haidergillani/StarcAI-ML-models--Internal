@@ -75,12 +75,13 @@ if __name__ == "__main__":
 
     # sentiments scoring
     sa_interface = CloudSentimentAnalysis()
-    sa_interface.cloud_run(user_data)    
+    scores = sa_interface.cloud_run(user_data)    
+    print(scores)
     
     # Text rewriting
-    sa_rewrite = OpenAIGPTRewriter()
     openai_api_key = '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'
     
     rewriter = OpenAIGPTRewriter(openai_api_key)
     rewritten_text = rewriter.rewrite_text(user_data)
     print(rewritten_text)
+    
