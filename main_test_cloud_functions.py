@@ -21,5 +21,3 @@ response_GPT = requests.post(url_GPT, json={'text': user_data})
 
 # Printing the response from the function
 print(response_GPT.text)
-
-

@@ -58,7 +58,7 @@ def entry_pointGPT(request):
     else:
         raise ValueError("Invalid request method. Only GET and POST requests are supported.")
 
-    openai_api_key = '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'
+    openai_api_key = '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'
 
     rewriter = OpenAIGPTRewriter(openai_api_key)
 
@@ -76,12 +76,15 @@ if __name__ == "__main__":
     # sentiments scoring
     sa_interface = CloudSentimentAnalysis()
     scores = sa_interface.cloud_run(user_data)    
+    # Order of scores = [overall, optimism, confidence, Strategic Forecasts]
     print(scores)
     
-    # Text rewriting
-    openai_api_key = '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'
     
-    rewriter = OpenAIGPTRewriter(openai_api_key)
+    # Text rewriting
+    openai_api_key_old = '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'
+    openai_api_key_new = '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'
+
+    rewriter = OpenAIGPTRewriter(openai_api_key_new)
     rewritten_text = rewriter.rewrite_text(user_data)
     print(rewritten_text)
     

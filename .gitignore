@@ -1,0 +1,26 @@
+# This file specifies files that are *not* uploaded to GitHub
+
+# Ignore node_modules
+node_modules
+
+# Ignore virtual environment directories
+venv/
+.env/
+.venv/
+
+# Ignore Python cache and bytecode files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore other unnecessary files
+.DS_Store
+*.log
+
+# Add the Python files we want to ignore for GitHub
+# e.g. Tone_Model.py
+
+
+# Add any other directories or files specific to your project that should not be deployed
+# e.g., local configuration files, test data, etc.

@@ -28,12 +28,14 @@ class OpenAIGPTRewriter:
         return rewritten_text
 
 if __name__ == '__main__':
-    api_key = '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'
-
-    rewriter = OpenAIGPTRewriter(api_key)
+    api_key_old = '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'
+    api_key_new = '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'
+    rewriter = OpenAIGPTRewriter(api_key_new)
 
     user_input = 'We expected economic weakness in some emerging markets. This turned out to have a significantly greater impact than we had projected.'
     rewritten_text = rewriter.rewrite_text(user_input)
 
     print(rewritten_text)
+
+
 
