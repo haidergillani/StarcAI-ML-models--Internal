@@ -3,7 +3,7 @@
 from Tone_Model import ToneModel
 from FLS_Model import FLSModel
 from Sentiment_FLS_join import DataMerger
-        
+import math        
 # Define class for a sentiment analysis interface
 class CloudSentimentAnalysis(DataMerger):
 
@@ -64,15 +64,15 @@ class CloudSentimentAnalysis(DataMerger):
         
         # Total of sentiment scores
         # Equations used: 
-        # Optimism = (Positive + Neutral) / (Positive + Neutral + Negative)
-        # Confidence = Positive / (Positive + Negative) 
+        # Optimism = (Positive) / (Positive + Negative)
+        # Confidence = (Positive + Neutral) / (Positive +  Negative + Neutral)
         # Specific FLS = Specific FLS / (Specific FLS + Non-specific FLS)
         
         # only for tone
-        sum_for_optimism = sum_positives + sum_neutrals
-        sum_for_confidence = sum_positives
-        total_score_for_optimism = sum_positives + sum_neutrals + sum_negatives
-        total_score_for_confidence = sum_positives + sum_negatives
+        sum_for_optimism = sum_positives
+        sum_for_confidence = sum_positives + sum_neutrals
+        total_score_for_optimism = sum_positives  + sum_negatives
+        total_score_for_confidence = sum_positives + sum_negatives + sum_neutrals
 
         # only for forward looking statements
         total_scores_fls = sum_specific_fls + sum_non_specific_fls
@@ -82,8 +82,8 @@ class CloudSentimentAnalysis(DataMerger):
         confidence_percentage = (sum_for_confidence / total_score_for_confidence) * 100
         specific_fls_percentage = (sum_specific_fls / total_scores_fls) * 100
 
-        # Add these to a list of sentiments
-        sentiments = [round(overall_score,2), round(optimism_percentage,2), round(confidence_percentage,2), round(specific_fls_percentage,2)]
+        # Add these to a list of sentiments, truncated to 2 decimal places
+        sentiments = [math.trunc(overall_score * 100) / 100, math.trunc(optimism_percentage * 100) / 100, math.trunc(confidence_percentage * 100) / 100, math.trunc(specific_fls_percentage * 100) / 100]
 
         # Return the list of sentiment scores
         return sentiments    
@@ -116,7 +116,9 @@ if __name__ == "__main__":
     user_text_pessimistic = 'We expected economic weakness in some emerging markets. This turned out to have a significantly greater impact than we had projected. Based on these estimates, our revenue will be lower than our original guidance for the quarter, with other items remaining broadly in line with our guidance. As we exit a challenging quarter, we may still find a way to retain the strength of our business. We use periods of adversity to re-examine our approach and use our flexibility, adaptability, and creativity to emerge better afterward.'
     user_text_optimistic = 'We had anticipated a slightly shaky economic growth in select emerging markets. This had a greater impact than we were previously expecting. However, while we anticipate a slight dip in quarterly revenue, other items remain broadly aligned with our forecast, which is promising. As we exit a challenging quarter, we are as confident as ever in the fundamental strength of our business. We have always used periods of adversity to re-examine our approach, to take advantage of our culture of flexibility, adaptability, and creativity, and to emerge better as a result.'
 
-    print(cloud_sentiment_analysis.cloud_run(user_text_pessimistic))
+    user_input = input("Enter text here: ")
+
+    print(cloud_sentiment_analysis.cloud_run(user_input))
     #cloud_sentiment_analysis.cloud_run(user_text_optimistic)
     
 # Example Output -- merged_result:

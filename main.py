@@ -58,8 +58,9 @@ def entry_pointGPT(request):
     else:
         raise ValueError("Invalid request method. Only GET and POST requests are supported.")
 
-    openai_api_key = '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'
-
+    # openai_api_key = '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'
+    openai_api_key = 'sk-WoaFGO86H0Oygv0vNztwNuS2g0jaDq0K7zVHthOThWT3BlbkFJiOVVWz2ES_0tpW-UFRwD1W8JDXkIeTUZXCZ2iT3dwA'
+ 
     rewriter = OpenAIGPTRewriter(openai_api_key)
 
     rewritten_text = rewriter.rewrite_text(user_input)
@@ -71,20 +72,26 @@ def entry_pointGPT(request):
 # When deployed to Google Cloud Functions, the entry_point functions will be called with the HTTP request object
 if __name__ == "__main__":
     
-    user_data = 'We expected economic weakness in some emerging markets. This turned out to have a significantly greater impact than we had projected.'     
+    user_data_sample = 'We expected economic weakness in some emerging markets. This turned out to have a significantly greater impact than we had projected.'     
+    test_user_data = "Overall, the market came in below expectations, particularly in China. Total print revenue was down 3% on a reported basis and 2% in constant currency. And while hardware units declined 2% year-over-year, total print market share increased both year-over-year and sequentially. And momentum in industrial graphics continued with supplies and services driving the fourth straight quarter of year-over-year revenue growth."
+    user_input = input("Enter text something: ")
 
     # sentiments scoring
     sa_interface = CloudSentimentAnalysis()
-    scores = sa_interface.cloud_run(user_data)    
-    # Order of scores = [overall, optimism, confidence, Strategic Forecasts]
+    scores = sa_interface.cloud_run(user_input)    
+    print("Order of scores = [overall, optimism, confidence, Strategic Forecasts]")
     print(scores)
     
     
     # Text rewriting
     openai_api_key_old = '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'
-    openai_api_key_new = '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'
+    openai_api_key_old2 = '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'
+    openai_api_key_new = 'sk-WoaFGO86H0Oygv0vNztwNuS2g0jaDq0K7zVHthOThWT3BlbkFJiOVVWz2ES_0tpW-UFRwD1W8JDXkIeTUZXCZ2iT3dwA'
 
-    rewriter = OpenAIGPTRewriter(openai_api_key_new)
-    rewritten_text = rewriter.rewrite_text(user_data)
-    print(rewritten_text)
+    #rewriter = OpenAIGPTRewriter(openai_api_key_new)
+    #rewritten_text = rewriter.rewrite_text(user_data)
+    #print(rewritten_text)
     
+    #scores = sa_interface.cloud_run(rewritten_text)    
+    #print("New Text Order of scores = [overall, optimism, confidence, Strategic Forecasts]")
+    #print(scores)
