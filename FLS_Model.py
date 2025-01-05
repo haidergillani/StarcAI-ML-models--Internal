@@ -1,15 +1,35 @@
-from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
+from transformers import BertTokenizer, BertForSequenceClassification
 import torch
 import os
 import nltk
 import collections
 from torch.nn.functional import softmax
 
+# Initialize NLTK data
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    nltk.download('wordnet', quiet=True)
+except Exception as e:
+    print(f"Error downloading NLTK data: {e}")
+
+# Initialize model and device once at module level
+_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+_tokenizer = None
+_fls = None
+
+def _initialize_model(model_name='yiyanghkust/finbert-fls', num_labels=3):
+    global _tokenizer, _fls
+    if _tokenizer is None:
+        _tokenizer = BertTokenizer.from_pretrained(model_name)
+        _fls = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels).to(_device)
+        _fls.eval()  # Set to evaluation mode
+
 class FLSModel:
     def __init__(self, model_name = 'yiyanghkust/finbert-fls', num_labels=3):
-        self.fls = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.fls = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels).to(self.device)
         self.tokenizer = BertTokenizer.from_pretrained(model_name)
-        self.nlp = pipeline("text-classification", model=self.fls, tokenizer=self.tokenizer)    
     
     LABELS = [
         ('Highly Specific Forward-Looking', lambda s, n, no: s > 0.90),
@@ -31,66 +51,69 @@ class FLSModel:
         return text
 
     def get_sentimentsFLS(self, text):
-        
-        # If text is empty or None, raise a ValueError
         if not text:
             raise ValueError("Input text cannot be empty or None.")
         
         try:
-            # using tokenize function to convert text into sentences for finbert-tone model
             sentences = self.tokenize(text)
-            
-            # Preprocessing a batch of sentences for input into transformer-based FinBERT 
-            # Use the tokenizer to encode all the sentences at once
-            encoded_batch = self.tokenizer.batch_encode_plus(
-                sentences,
-                add_special_tokens=True,
-                max_length=512,     # Specifies max length
-                padding='max_length',   # Pads to max_length
-                truncation=True,    # Enables truncation
-                return_attention_mask=True,
-                return_tensors='pt'
-            )
-
-            # Perform model inference
-            
-            # Get the model outputs with the forward method, without performing backpropagation
-            # this disables gradient descent and saves memory since model is not being trained
-            with torch.no_grad():
-                outputs = self.fls(**encoded_batch)
-                logits = outputs.logits
-                probabilities = softmax(logits, dim=1).detach().numpy()
-
+            batch_size = 32
             results = []
-            for i, sentence in enumerate(sentences):
-                # Extract probabilities for each sentence
-                prob = probabilities[i]
+            
+            for i in range(0, len(sentences), batch_size):
+                batch = sentences[i:i + batch_size]
+                encoded_batch = self.tokenizer.batch_encode_plus(
+                    batch,
+                    add_special_tokens=True,
+                    max_length=512,
+                    padding='max_length',
+                    truncation=True,
+                    return_attention_mask=True,
+                    return_tensors='pt'
+                )
                 
-                # LABEL_0: Not FLS; LABEL_1: Non-specific FLS; LABEL_2: Specific FLS 
-                result = {
-                    'sentence': sentence,
-                    'Not FLS': prob[0],
-                    'Non-specific FLS': prob[1],
-                    'Specific FLS': prob[2]
-                }
-                result['LabelFLS'] = self.generate_label(result)
-                results.append(result)
-
+                encoded_batch = {k: v.to(_device) for k, v in encoded_batch.items()}
+                
+                with torch.no_grad():
+                    outputs = self.fls(**encoded_batch)
+                
+                probs = torch.nn.functional.softmax(outputs.logits, dim=1).cpu().numpy()
+                
+                batch_results = [
+                    {
+                        'sentence': sentence,
+                        'Not FLS': float(prob[2]),
+                        'Specific FLS': float(prob[0]),
+                        'Non-specific FLS': float(prob[1]),
+                        'LabelFLS': self.generate_label({
+                            'Specific FLS': float(prob[0]),
+                            'Non-specific FLS': float(prob[1]),
+                            'Not FLS': float(prob[2])
+                        })
+                    }
+                    for sentence, prob in zip(batch, probs)
+                ]
+                results.extend(batch_results)
+                
+            # Print debug only for first call
+            if not hasattr(self, '_debug_printed'):
+                print(f"Debug - Sample FLS result: {results[0]}")
+                self._debug_printed = True
+                
             return results
-        
+            
         except Exception as e:
-            raise ValueError("No valid text to process.")
-        
+            print(f"Error in FLS processing: {str(e)}")
+            raise ValueError("Error processing input text.") from e
+    
     def generate_label(self, result):
+        s, n, no = result['Specific FLS'], result['Non-specific FLS'], result['Not FLS']
         
-        Specific = result['Specific FLS']
-        nonSpecific = result['Non-specific FLS']
-        notFLS = result['Not FLS']
-        
-        for label, condition in self.LABELS:
-            if condition(Specific, nonSpecific, notFLS):
-                return label
-        return 'Undefined'  # Default label in case none of the conditions above are met
+        if no > 0.90: return 'Certainly Not Forward-Looking'
+        if no > 0.70: return 'Not Forward-Looking'
+        if s > 0.90: return 'Highly Specific Forward-Looking'
+        if s > 0.70: return 'Specific Forward-Looking'
+        # ... etc
+        return 'Undefined'
     
     def sentiment_countFLS(self, results):
         if results is None:

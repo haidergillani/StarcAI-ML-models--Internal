@@ -4,27 +4,27 @@ from Tone_Model import ToneModel
 from FLS_Model import FLSModel
 from Sentiment_FLS_join import DataMerger
 import math        
+# Initialize models once at module level
+_tone_model = ToneModel()
+_fls_model = FLSModel()
+
 # Define class for a sentiment analysis interface
 class CloudSentimentAnalysis(DataMerger):
+    WEIGHTS = {
+        'Positive': 1.0,
+        'Neutral': 0.7,
+        'Negative': 0.0,
+        'Specific FLS': 1.0,
+        'Non-specific FLS': 0.0,
+        'Not FLS': 1.0
+    }
 
     # Initialize the sentiment analysis model on class instantiation
     def __init__(self):
-        self.tone_model = ToneModel()
-        self.FLS_model = FLSModel()
+        # Use the pre-initialized models
+        self.tone_model = _tone_model
+        self.FLS_model = _fls_model
         
-    # Define weights for each label
-    weights = {
-        # Sentiment weights
-        'Positive': 1.0,    # Most desirable sentiment
-        'Neutral': 0.7,     # Neutral sentiment
-        'Negative': 0.0,    # Least desirable sentiment
-
-        # FLS weights
-        'Specific FLS': 1.0,          # Most desirable FLS
-        'Non-specific FLS': 0.0,      # Least desirable FLS
-        'Not FLS': 1.0                # Not a FLS
-    }
-
     # Method to get sentiments from the Tone and FLS models for user text
     def get_sentence_sentiments(self, text):
         SentimentData = self.tone_model.get_sentiments(text)
@@ -88,10 +88,11 @@ class CloudSentimentAnalysis(DataMerger):
         # Return the list of sentiment scores
         return sentiments    
 
-    # Function to calculate overall sentence score
-    def calculate_overall_sentence_score(self, sentence_data):
-        sentence_score = sum(self.weights.get(label, 0) * probability for label, probability in sentence_data.items() if label in self.weights)
-        return sentence_score
+    @staticmethod
+    def calculate_overall_sentence_score(sentence_data):
+        return sum(CloudSentimentAnalysis.WEIGHTS.get(label, 0) * probability 
+                  for label, probability in sentence_data.items() 
+                  if label in CloudSentimentAnalysis.WEIGHTS)
     
     def overall_text_sentiment_scores(self, merged_results):      
         # Calculate scores for each sentence and normalize

@@ -1,39 +1,34 @@
 import torch
-from torch.nn.functional import softmax
-from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
-#from keras.preprocessing.sequence import pad_sequences
-#from torch.nn.functional import softmax
-import collections
-
-import os
+from transformers import BertTokenizer, BertForSequenceClassification
 import nltk
+import collections
+import os
 
-# Setting the NLTK data path to the local 'nltk_data' directory
-nltk.data.path.append(os.path.join(os.getcwd(), 'nltk_data'))
+# Initialize NLTK data
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    nltk.download('wordnet', quiet=True)
+except Exception as e:
+    print(f"Error downloading NLTK data: {e}")
 
-"""
-    FinBERT: Financial Sentiment Analysis with BERT Fine-Tuned
-    
-    This is the model for 6-scale sentiment analysis of financial news articles using probabilities.
-"""
+# Initialize model and device once at module level
+_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+_tokenizer = None
+_finbert = None
 
-#Code Below for 6 point scale with probabilities
-#Note: All functions in this docstring are specific to the 5 point scale
+def _initialize_model(model_name='yiyanghkust/finbert-tone', num_labels=3):
+    global _tokenizer, _finbert
+    if _tokenizer is None:
+        _tokenizer = BertTokenizer.from_pretrained(model_name)
+        _finbert = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels).to(_device)
+        _finbert.eval()  # Set to evaluation mode
 
-class ToneModel():
-    def __init__(self, model_name='yiyanghkust/finbert-tone', num_labels=3):
-        # 'yiyanghkust/finbert-fls' for forward-looking statements (finetuned on 3500 sentences)
-        # 'ProsusAI/finbert' for original FinBERT model
-        # 'yiyanghkust/finbert-tone' for finbert-tone (finetuned on 10,000 sentences)
-        
-        self.finbert = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
-        self.tokenizer = BertTokenizer.from_pretrained(model_name)
-        self.nlp = pipeline("sentiment-analysis", model=self.finbert, tokenizer=self.tokenizer)
-        
-    # p = positive, n = negative, nu = neutral
+class ToneModel:
+    # Pre-define label conditions as class constants
     LABELS = [
         ('Strong Positive', lambda p, n, nu: p > 0.90),
-        ('Positive',        lambda p, n, nu: p > 0.70),
+        ('Positive', lambda p, n, nu: p > 0.70),
         ('Slightly Positive', lambda p, n, nu: p > 0.50),
         ('Strong Negative', lambda p, n, nu: n > 0.90),
         ('Negative', lambda p, n, nu: n > 0.70),
@@ -42,91 +37,90 @@ class ToneModel():
         ('Neutral yet Slightly Negative', lambda p, n, nu: nu > p and nu > n and n > p and n > 0.10),
         ('Strong Neutral', lambda p, n, nu: nu > 0.90),
         ('Neutral', lambda p, n, nu: nu > 0.70),
-        ('Slightly Neutral', lambda p, n, nu: nu > 0.50 or nu < 0.50 and p < 0.5 and n < 0.5),
+        ('Slightly Neutral', lambda p, n, nu: nu > 0.50 or (nu < 0.50 and p < 0.5 and n < 0.5)),
     ]
 
-    def tokenize(self, text):
-        # text is a list of sentences
-        # tokenize the text into sentences for finbert-tone model
-        text = nltk.tokenize.sent_tokenize(text)
-        return text
+    def __init__(self, model_name='yiyanghkust/finbert-tone', num_labels=3):
+        _initialize_model(model_name, num_labels)
+        self.tokenizer = _tokenizer
+        self.finbert = _finbert
+    
+    @staticmethod
+    def tokenize(text):
+        return nltk.tokenize.sent_tokenize(text)
     
     def get_sentiments(self, text):
         sentences = self.tokenize(text)
         if not sentences:
-            # If text is empty or None, raise a ValueError
             raise ValueError("Sentences is not working text cannot be empty or None.")
 
         try:
-            # Tokenize the text into sentences
-            #sentences = self.tokenize(text)
-
-            # Preprocessing a batch of sentences for input into transformer-based FinBERT 
-            # Use the tokenizer to encode all the sentences at once
-            encoded_dict = self.tokenizer.batch_encode_plus(
-                sentences,
-                add_special_tokens=True,
-                max_length=512,     # Specifies max length
-                padding='max_length',   # Pads to max_length
-                truncation=True,    # Enables truncation
-                return_attention_mask=True,
-                return_tensors='pt'
-            )
-
-            # Get the model outputs with the forward method, without performing backpropagation
-            # this disables gradient descent and saves memory since model is not being trained
-            with torch.no_grad():
-                outputs = self.finbert(**encoded_dict)
-
-            # Apply softmax function to get probabilities from model's raw outputs
-            probs = torch.nn.functional.softmax(outputs.logits, dim=1).numpy()
-
-            # Prepare results
+            # Process sentences in batches for better performance
+            batch_size = 32
             results = []
-            # Loop over each sentence and its corresponding probabilities
-            for sentence, prob in zip(sentences, probs):
-                result = {}
-                # Save the sentence
-                result['sentence'] = sentence
-                # Save the probabilities for each label
-            # Note: for the ProsusAI model, the labels are in the following order:
-            # LABEL_0: positive; LABEL_1: negative; LABEL_2: neutral 
             
-                result['Positive'] = prob[1]  # positive is LABEL_1
-                result['Neutral'] = prob[0]  # neutral is LABEL_0
-                result['Negative'] = prob[2]  # negative is LABEL_2
-                # Append the result to our results list
-                result['label'] = self.generate_label(result)  # Call the new function here
-                result['LabelTone'] = result.pop('label')  # Replace 'label' with 'labelFLS'
+            for i in range(0, len(sentences), batch_size):
+                batch = sentences[i:i + batch_size]
+                
+                # Batch encode all sentences at once
+                encoded_dict = self.tokenizer.batch_encode_plus(
+                    batch,
+                    add_special_tokens=True,
+                    max_length=512,
+                    padding='max_length',
+                    truncation=True,
+                    return_attention_mask=True,
+                    return_tensors='pt'
+                )
+                
+                # Move tensors to device
+                encoded_dict = {k: v.to(_device) for k, v in encoded_dict.items()}
 
-                results.append(result)
+                # Get model outputs
+                with torch.no_grad():
+                    outputs = self.finbert(**encoded_dict)
+                
+                # Get probabilities
+                probs = torch.nn.functional.softmax(outputs.logits, dim=1).cpu().numpy()
 
-            # Return the results
+                # Process results
+                batch_results = [
+                    {
+                        'sentence': sentence,
+                        'Positive': float(prob[1]),
+                        'Neutral': float(prob[0]),
+                        'Negative': float(prob[2]),
+                        'LabelTone': self.generate_label({
+                            'Positive': float(prob[1]),
+                            'Neutral': float(prob[0]),
+                            'Negative': float(prob[2])
+                        })
+                    }
+                    for sentence, prob in zip(batch, probs)
+                ]
+                results.extend(batch_results)
+
             return results
 
         except Exception as e:
             raise ValueError("Error processing input text. Please ensure it is a valid string.") from e
 
-   
-    # label generation with probabilities        
-    def generate_label(self, result):
-        
+    @staticmethod
+    def generate_label(result):
         positive = result['Positive']
         negative = result['Negative']
         neutral = result['Neutral']
         
-        for label, condition in self.LABELS:
+        for label, condition in ToneModel.LABELS:
             if condition(positive, negative, neutral):
                 return label
-        return 'Undefined'  # Default label in case none of the conditions above are met
-        
-    #5 point scale with probabilities        
+        return 'Undefined'
+
     def sentiment_count(self, results):
         if results is None:
             print("No results to process.")
             return
         
-        # finbert-tone uses LABEL_1 for positive, LABEL_0 for neutral, and LABEL_2 for negative
         labels = [result['LabelTone'] for result in results]
         counts = collections.Counter(labels)
         total_labels = len(labels)
@@ -134,26 +128,7 @@ class ToneModel():
         sentiments = [sentiment for sentiment, _ in self.LABELS]
         for sentiment in sentiments:
             if counts.get(sentiment, 0) > 0:
-                # Using list comprehension to print results
                 print(f"{sentiment:<50}: {counts[sentiment]} {round(counts[sentiment] / total_labels * 100, 2)} %")
-            
-    def sentiment_prob_scores(self, results):
-        if results is None:
-            print("No results to process.")
-            return
-
-        # Extracting individual probabilities for each sentiment
-        positives = [result['Positive'] for result in results]
-        negatives = [result['Negative'] for result in results]
-        neutrals = [result['Neutral'] for result in results]
-
-        # Calculating the sum of probabilities for each sentiment
-        sum_positives = sum(positives)
-        sum_negatives = sum(negatives)
-        sum_neutrals = sum(neutrals)
-
-        # Return these sums for probabiity scores
-        return sum_positives, sum_negatives, sum_neutrals
 '''
     def sentiment_df(self, results):
         # create a dataframe with columns: sentence, label, score

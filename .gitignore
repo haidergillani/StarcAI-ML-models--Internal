@@ -1,5 +1,7 @@
 # This file specifies files that are *not* uploaded to GitHub
 
+.env
+
 # Ignore node_modules
 node_modules
 
