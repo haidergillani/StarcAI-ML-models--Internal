@@ -1,6 +1,5 @@
 from GPT_rewrite import OpenAIGPTRewriter
 from STARC_Cloud_Request import CloudSentimentAnalysis
-from google.cloud import storage
 from dotenv import load_dotenv
 import os
 import nltk
@@ -8,10 +7,15 @@ import nltk
 # Load environment variables
 load_dotenv()
 
-def setup_nltk():
-    # Add the nltk_data directory to NLTK's search path
-    nltk_dir = os.path.join(os.getcwd(), 'nltk_data')
-    nltk.data.path.append(nltk_dir)
+# Initialize NLTK once at module level
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    nltk.download('wordnet', quiet=True)
+    # Add any other required NLTK packages here
+except Exception as e:
+    print(f"Error downloading NLTK data: {e}")
+    raise
 
 def entry_pointSA(request):
     # API Key Check
@@ -23,7 +27,6 @@ def entry_pointSA(request):
     if not request_api_key or request_api_key != expected_api_key:
         return ('Invalid API key', 403)
     
-    setup_nltk()
     if request.method == 'POST':
         # Extracting user input from POST request body
         request_json = request.get_json(silent=True)
