@@ -1,12 +1,7 @@
-from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
-#from keras.preprocessing.sequence import pad_sequences
-#from torch.nn.functional import softmax
-import nltk
-#import torch
+from transformers import BertTokenizer, BertForSequenceClassification, pipeline
 import collections
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
+from utils import FastFinancialTokenizer
 
 class SentimentAnalysis:
     def __init__(self, model_name='yiyanghkust/finbert-tone', num_labels=3):
@@ -21,7 +16,7 @@ class SentimentAnalysis:
     def tokenize(self, text):
         # text is a list of sentences
         # tokenize the text into sentences for finbert-tone model
-        text = nltk.tokenize.sent_tokenize(text)
+        text = FastFinancialTokenizer().tokenize(text)
         return text
         
     #Normal on a 3 scale without probabilities

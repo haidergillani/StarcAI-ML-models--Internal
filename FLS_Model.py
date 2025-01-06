@@ -1,17 +1,7 @@
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
-import os
-import nltk
 import collections
-from torch.nn.functional import softmax
-
-# Initialize NLTK data
-try:
-    nltk.download('punkt', quiet=True)
-    nltk.download('averaged_perceptron_tagger', quiet=True)
-    nltk.download('wordnet', quiet=True)
-except Exception as e:
-    print(f"Error downloading NLTK data: {e}")
+from utils import FastFinancialTokenizer
 
 # Initialize model and device once at module level
 _device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,7 +37,7 @@ class FLSModel:
          
     def tokenize(self, text):
         # Split text into sentences using the NLTK tokenizer
-        text = nltk.sent_tokenize(text)
+        text = FastFinancialTokenizer().tokenize(text)
         return text
 
     def get_sentimentsFLS(self, text):
