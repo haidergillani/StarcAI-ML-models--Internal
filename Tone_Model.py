@@ -1,16 +1,7 @@
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
-import nltk
 import collections
-import os
-
-# Initialize NLTK data
-try:
-    nltk.download('punkt', quiet=True)
-    nltk.download('averaged_perceptron_tagger', quiet=True)
-    nltk.download('wordnet', quiet=True)
-except Exception as e:
-    print(f"Error downloading NLTK data: {e}")
+from utils import FastFinancialTokenizer
 
 # Initialize model and device once at module level
 _device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,7 +38,7 @@ class ToneModel:
     
     @staticmethod
     def tokenize(text):
-        return nltk.tokenize.sent_tokenize(text)
+        return FastFinancialTokenizer().tokenize(text)
     
     def get_sentiments(self, text):
         sentences = self.tokenize(text)

@@ -1,7 +1,6 @@
-from transformers import AutoTokenizer, BertTokenizer, BertForSequenceClassification, pipeline
-import os
-import nltk
+from transformers import BertTokenizer, BertForSequenceClassification, pipeline
 import collections
+from utils import FastFinancialTokenizer
 
 class FLSModel:
     def __init__(self, model_name = 'yiyanghkust/finbert-fls', num_labels=3):
@@ -11,7 +10,7 @@ class FLSModel:
          
     def tokenize(self, text):
         # Split text into sentences using the NLTK tokenizer
-        text = nltk.sent_tokenize(text)
+        text = FastFinancialTokenizer().tokenize(text)
         return text
 
     def get_sentimentsFLS(self, text):
