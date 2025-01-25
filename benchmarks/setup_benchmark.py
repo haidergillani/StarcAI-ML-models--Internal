@@ -1,11 +1,20 @@
 import time
 import subprocess
 import sys
-import torch
 from pathlib import Path
 import os
 import pkg_resources
 from functools import wraps
+
+# Get the absolute path to the requirements.txt file
+REPO_ROOT = Path(__file__).parent.parent
+REQUIREMENTS_PATH = REPO_ROOT / "requirements.txt"
+
+# Add directories to Python path
+MODELS_PATH = REPO_ROOT / "models"
+UTILS_PATH = REPO_ROOT / "utils"
+sys.path.append(str(MODELS_PATH))
+sys.path.append(str(UTILS_PATH))
 
 def time_operation(operation_name):
     def decorator(func):
@@ -32,7 +41,7 @@ class SetupBenchmark:
         print("Force reinstalling requirements...")
         before_packages = self.get_installed_packages()
         
-        with open('requirements.txt', 'r') as f:
+        with open(REQUIREMENTS_PATH, 'r') as f:
             requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
         
         total_start = time.perf_counter()
@@ -196,7 +205,7 @@ class SetupBenchmark:
 
     def run_full_benchmark(self):
         print("Starting full benchmark...")
-        print(f"Device: {'CUDA' if torch.cuda.is_available() else 'CPU'}")
+        # Move torch import after requirements installation
         print(f"Python version: {sys.version}")
         
         try:
@@ -207,6 +216,10 @@ class SetupBenchmark:
             # First install all requirements
             print("\nStep 2: Installing Requirements")
             before_pkgs, after_pkgs = self.force_reinstall_requirements()
+            
+            # Now we can import torch since it's installed
+            import torch
+            print(f"Device: {'CUDA' if torch.cuda.is_available() else 'CPU'}")
             
             # Install NLTK separately
             print("\nStep 3: Installing NLTK")

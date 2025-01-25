@@ -7,8 +7,6 @@ from functools import wraps
 import shutil
 import json
 import numpy as np
-import onnx
-from onnx import version_converter
 
 def time_operation(operation_name):
     def decorator(func):
@@ -69,35 +67,40 @@ class SetupBenchmarkONNX:
     def download_model(self):
         print("Downloading model...")
         from huggingface_hub import hf_hub_download
+        import onnx
         
         start = time.perf_counter()
         model_path = hf_hub_download(
             repo_id="MSaadAsad/FinBERT-merged-tone-fls",
-            filename="finbert_6layers_quantized.onnx"
+            filename="finbert_6layers_quantized_compat.onnx"
         )
         
-        print("Converting model to compatible opset version...")
+        # Print detailed model info
+        print(f"Downloaded model to: {model_path}")
+        print(f"Model size: {os.path.getsize(model_path) / (1024*1024):.2f} MB")
+        
+        # Load and print detailed model metadata
         try:
-            # Load the model
             model = onnx.load(model_path)
-            print(f"Original model opset version: {model.opset_import[0].version}")
-            
-            # Convert model to use older opset version
-            converted_model = version_converter.convert_version(model, 13)  # Convert to opset 13
-            
-            # Save the converted model
-            converted_path = model_path.replace('.onnx', '_converted.onnx')
-            onnx.save(converted_model, converted_path)
-            print(f"Saved converted model to: {converted_path}")
-            
-            self.detailed_timings['model_download'] = time.perf_counter() - start
-            return converted_path
-            
+            print("\nDetailed Model Metadata:")
+            print(f"IR version: {model.ir_version}")
+            print(f"Producer name: {model.producer_name}")
+            print(f"Producer version: {model.producer_version}")
+            print(f"Domain: {model.domain}")
+            print(f"Model version: {model.model_version}")
+            print("\nAll Opset Imports:")
+            for opset in model.opset_import:
+                print(f"Domain: {opset.domain}, Version: {opset.version}")
+            print("\nOperator Domains Used:")
+            ops = set()
+            for node in model.graph.node:
+                ops.add(node.domain if node.domain else "ai.onnx")
+            print("Domains:", ops)
         except Exception as e:
-            print(f"Failed to convert model: {str(e)}")
-            print("Falling back to original model...")
-            self.detailed_timings['model_download'] = time.perf_counter() - start
-            return model_path
+            print(f"Failed to load model metadata: {str(e)}")
+        
+        self.detailed_timings['model_download'] = time.perf_counter() - start
+        return model_path
 
     @time_operation("tokenizer_setup")
     def setup_tokenizer(self):
@@ -125,9 +128,12 @@ class SetupBenchmarkONNX:
         import platform
         import os
         
-        # Set environment variables to bypass opset version checks
+        # Set environment variables to bypass opset version checks and enable more detailed logging
         os.environ['ORT_DISABLE_STRICT_OPSET_CHECKING'] = '1'
         os.environ['ORT_DISABLE_FALLBACK'] = '0'
+        os.environ['ORT_LOG_LEVEL'] = '0'  # Verbose logging
+        os.environ['ONNXRUNTIME_ENABLE_EXTENDED_OPERATORS'] = '1'
+        os.environ['ORT_DISABLE_ALL_OPSET_VALIDATION'] = '1'  # Try to completely disable opset validation
         
         # Print detailed environment info
         print("\nEnvironment Details:")
@@ -138,98 +144,48 @@ class SetupBenchmarkONNX:
         
         start = time.perf_counter()
         
-        # Try different session options combinations
-        session_options_to_try = [
-            {
-                'inter_op_num_threads': 1,
-                'intra_op_num_threads': 1,
-                'graph_optimization_level': onnxruntime.GraphOptimizationLevel.ORT_DISABLE_ALL,
-                'execution_mode': onnxruntime.ExecutionMode.ORT_SEQUENTIAL
-            },
-            {
-                'inter_op_num_threads': 1,
-                'intra_op_num_threads': 1,
-                'graph_optimization_level': onnxruntime.GraphOptimizationLevel.ORT_ENABLE_BASIC,
-                'execution_mode': onnxruntime.ExecutionMode.ORT_SEQUENTIAL
-            }
-        ]
+        # Simplified session options - focus on basic CPU execution
+        sess_options = onnxruntime.SessionOptions()
+        sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_BASIC
+        sess_options.intra_op_num_threads = 1
+        sess_options.inter_op_num_threads = 1
+        sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
         
-        providers_to_try = [
-            ['CPUExecutionProvider'],
-            None,
-            ['CoreMLExecutionProvider', 'CPUExecutionProvider']  # Try CoreML for Mac
-        ]
+        # Try to disable opset validation in session options
+        sess_options.add_session_config_entry('session.disable_strict_opset_checking', '1')
+        sess_options.add_session_config_entry('session.use_ort_model_bytes_directly', '1')
         
-        last_error = None
-        for session_opts in session_options_to_try:
-            for providers in providers_to_try:
-                try:
-                    print(f"\nTrying with:")
-                    print(f"Providers: {providers}")
-                    print(f"Session options: {session_opts}")
-                    
-                    sess_options = onnxruntime.SessionOptions()
-                    
-                    # Apply session options
-                    sess_options.inter_op_num_threads = session_opts['inter_op_num_threads']
-                    sess_options.intra_op_num_threads = session_opts['intra_op_num_threads']
-                    sess_options.graph_optimization_level = session_opts['graph_optimization_level']
-                    sess_options.execution_mode = session_opts['execution_mode']
-                    
-                    # Enable verbose output
-                    sess_options.log_severity_level = 0
-                    
-                    # Disable optimizations that might cause issues
-                    sess_options.add_session_config_entry('session.disable_strict_opset_checking', '1')
-                    sess_options.add_session_config_entry('session.disable_fallback', '0')
-                    
-                    if providers:
-                        session = onnxruntime.InferenceSession(
-                            model_path,
-                            sess_options,
-                            providers=providers
-                        )
-                    else:
-                        session = onnxruntime.InferenceSession(model_path, sess_options)
-                    
-                    print(f"Success with providers: {session.get_providers()}")
-                    print("Model inputs:", session.get_inputs())
-                    print("Model outputs:", session.get_outputs())
-                    
-                    self.detailed_timings['model_init'] = time.perf_counter() - start
-                    return session
-                    
-                except Exception as e:
-                    print(f"Failed with current configuration: {str(e)}")
-                    last_error = e
-        
-        # If we get here, all combinations failed
-        print("\nAll combinations failed!")
-        print(f"Model path: {model_path}")
-        if os.path.exists(model_path):
-            print(f"Model file size: {os.path.getsize(model_path)} bytes")
-            try:
-                print("\nModel details:")
-                print(f"IR version: {model.ir_version}")
-                print(f"Producer name: {model.producer_name}")
-                print(f"Producer version: {model.producer_version}")
-                print(f"Domain: {model.domain}")
-                print(f"Model version: {model.model_version}")
-                print(f"Doc string: {model.doc_string}")
-                print("\nOpset imports:")
-                for opset in model.opset_import:
-                    print(f"Domain: {opset.domain}, Version: {opset.version}")
-            except Exception as e:
-                print(f"Failed to inspect model: {str(e)}")
-        else:
-            print("Model file does not exist!")
-        
-        raise last_error if last_error else RuntimeError("Failed to initialize model with any configuration")
+        try:
+            print("\nAttempting to create inference session...")
+            session = onnxruntime.InferenceSession(
+                model_path,
+                sess_options,
+                providers=['CPUExecutionProvider']
+            )
+            
+            print("Successfully created inference session")
+            print("Model inputs:", session.get_inputs())
+            print("Model outputs:", session.get_outputs())
+            
+            self.detailed_timings['model_init'] = time.perf_counter() - start
+            return session
+            
+        except Exception as e:
+            print(f"\nFailed to initialize model: {str(e)}")
+            print(f"Model path: {model_path}")
+            if os.path.exists(model_path):
+                print(f"Model file size: {os.path.getsize(model_path)} bytes")
+            else:
+                print("Model file does not exist!")
+            raise
 
     @time_operation("sample_inference")
     def run_sample_inference(self, session, vocab_path):
         print("Running sample inference...")
-        from your_tokenizer import BertTokenizer  # Import from your tokenizer file
+        import sys
+        from pathlib import Path
+        sys.path.append(str(Path(__file__).parent.parent))
+        from onnx_inference.tokenizer import BertTokenizer
         
         tokenizer = BertTokenizer(vocab_path)
         
@@ -268,7 +224,10 @@ class SetupBenchmarkONNX:
     @time_operation("batch_inference")
     def run_batch_inference(self, session, vocab_path, batch_size=32):
         print("Running batch inference...")
-        from your_tokenizer import BertTokenizer
+        import sys
+        from pathlib import Path
+        sys.path.append(str(Path(__file__).parent.parent))
+        from onnx_inference.tokenizer import BertTokenizer
         
         tokenizer = BertTokenizer(vocab_path)
         
