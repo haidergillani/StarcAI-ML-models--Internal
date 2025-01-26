@@ -1,9 +1,14 @@
 import json
+import os
+from dotenv import load_dotenv
 import functions_framework
 from huggingface_hub import hf_hub_download
 import onnxruntime
 import numpy as np
 from tokenizer import BertTokenizer
+
+# Load environment variables
+load_dotenv()
 
 # Global variables to cache model and tokenizer
 _model = None
@@ -21,7 +26,7 @@ def initialize():
         # Download model and vocab
         model_path = hf_hub_download(
             repo_id="MSaadAsad/FinBERT-merged-tone-fls",
-            filename="finbert_6layers_quantized.onnx"
+            filename="finbert_6layers_quantized_compat.onnx"
         )
         vocab_path = hf_hub_download(
             repo_id="MSaadAsad/FinBERT-merged-tone-fls",
@@ -34,7 +39,8 @@ def initialize():
         # Initialize ONNX Runtime session
         sess_options = onnxruntime.SessionOptions()
         sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-        sess_options.intra_op_num_threads = 1
+        sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL  # For consistent performance
+        sess_options.enable_cpu_mem_arena = True  # Enable memory arena for better caching
         
         # Create session
         _model = onnxruntime.InferenceSession(
@@ -43,7 +49,7 @@ def initialize():
             providers=['CPUExecutionProvider']
         )
 
-def analyze_batch(texts, batch_size=32, max_length=512):
+def analyze_batch(texts, batch_size=16, max_length=512):
     """Process a batch of texts."""
     results = []
     for i in range(0, len(texts), batch_size):
@@ -91,6 +97,17 @@ def softmax(x):
     exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
     return exp_x / np.sum(exp_x, axis=1, keepdims=True)
 
+def validate_api_key(request):
+    """Validate the API key from request."""
+    expected_api_key = os.getenv('GOOGLE_CLOUD_API_KEY')
+    if not expected_api_key:
+        raise ValueError("Google Cloud API key not found in environment variables")
+    
+    request_api_key = request.args.get('apikey')
+    if not request_api_key or request_api_key != expected_api_key:
+        return False
+    return True
+
 @functions_framework.http
 def hello_http(request):
     """HTTP Cloud Function for model inference."""
@@ -108,6 +125,10 @@ def hello_http(request):
     headers = {'Access-Control-Allow-Origin': '*'}
     
     try:
+        # Validate API key
+        if not validate_api_key(request):
+            return ('Invalid API key', 403, headers)
+            
         # Initialize if needed
         if _model is None:
             initialize()
@@ -134,6 +155,7 @@ def hello_http(request):
 
 if __name__ == "__main__":
     # For local testing
+    load_dotenv()  # Load environment variables for local testing
     initialize()
     texts = [
         "We expect strong growth in the next quarter due to our strategic investments.",
