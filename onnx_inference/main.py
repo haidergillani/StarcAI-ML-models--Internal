@@ -100,12 +100,21 @@ def softmax(x):
 def validate_api_key(request):
     """Validate the API key from request."""
     expected_api_key = os.getenv('GOOGLE_CLOUD_API_KEY')
+    print(f"Environment variables available: {list(os.environ.keys())}")
+    print(f"Expected API key exists: {bool(expected_api_key)}")
+    
     if not expected_api_key:
-        raise ValueError("Google Cloud API key not found in environment variables")
+        raise ValueError("Google Cloud API key not found in environment variables. Please check configuration.")
     
     request_api_key = request.args.get('apikey')
-    if not request_api_key or request_api_key != expected_api_key:
-        return False
+    print(f"Received API key exists: {bool(request_api_key)}")
+    
+    if not request_api_key:
+        raise ValueError("No API key provided in request")
+    
+    if request_api_key != expected_api_key:
+        raise ValueError("Invalid API key provided")
+    
     return True
 
 @functions_framework.http
