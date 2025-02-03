@@ -3,6 +3,7 @@ import numpy as np
 from huggingface_hub import hf_hub_download
 import onnxruntime
 import sys
+import os
 from pathlib import Path
 
 # Add parent directory to path to import from onnx_inference
@@ -18,7 +19,7 @@ def softmax(x):
     return exp_x / np.sum(exp_x, axis=1, keepdims=True)
 
 def initialize_model():
-    """Initialize model and tokenizer."""
+    """Initialize model and tokenizer with optimized settings."""
     # Download model and vocab
     model_path = hf_hub_download(
         repo_id="MSaadAsad/FinBERT-merged-tone-fls",
@@ -32,11 +33,22 @@ def initialize_model():
     # Initialize tokenizer
     tokenizer = BertTokenizer(vocab_path)
     
-    # Initialize ONNX Runtime session
+    # Initialize ONNX Runtime session with optimized settings
     sess_options = onnxruntime.SessionOptions()
     sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-    sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
+    
+    # Enable parallel execution
+    sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
+    
+    # Set threading options - adjust based on CPU cores
+    num_threads = min(4, os.cpu_count() or 4)  # Use at most 4 threads
+    sess_options.intra_op_num_threads = num_threads
+    sess_options.inter_op_num_threads = num_threads
+    
+    # Memory optimizations
     sess_options.enable_cpu_mem_arena = True
+    sess_options.enable_mem_pattern = True
+    sess_options.enable_mem_reuse = True
     
     # Create session
     model = onnxruntime.InferenceSession(
@@ -47,21 +59,28 @@ def initialize_model():
     
     return model, tokenizer
 
-def process_batch(model, tokenizer, texts, batch_size):
-    """Process a batch of texts."""
+def process_batch(model, tokenizer, texts, max_length=512):
+    """Process a batch of texts with optimized memory handling."""
+    batch_size = len(texts)
+    
+    # Pre-allocate numpy arrays for the batch
+    input_ids = np.zeros((batch_size, max_length), dtype=np.int64)
+    attention_mask = np.zeros((batch_size, max_length), dtype=np.int64)
+    token_type_ids = np.zeros((batch_size, max_length), dtype=np.int64)
+    
+    # Tokenize all texts at once and fill pre-allocated arrays
+    for i, text in enumerate(texts):
+        encoded = tokenizer.encode(text, max_length)
+        input_ids[i] = encoded['input_ids'][0]
+        attention_mask[i] = encoded['attention_mask'][0]
+        token_type_ids[i] = encoded['token_type_ids'][0]
+    
+    # Create batch inputs once
     batch_inputs = {
-        'input_ids': [],
-        'attention_mask': [],
-        'token_type_ids': []
+        'input_ids': input_ids,
+        'attention_mask': attention_mask,
+        'token_type_ids': token_type_ids
     }
-    
-    for text in texts:
-        inputs = tokenizer.encode(text, max_length=512)
-        for k in batch_inputs:
-            batch_inputs[k].append(inputs[k][0])
-    
-    # Convert to numpy arrays
-    batch_inputs = {k: np.array(v) for k, v in batch_inputs.items()}
     
     # Run inference
     outputs = model.run(None, batch_inputs)
@@ -73,7 +92,7 @@ def process_batch(model, tokenizer, texts, batch_size):
     
     return tone_probs, fls_probs
 
-def run_benchmark(num_iterations=10):
+def run_benchmark(num_iterations=50):
     print("Initializing model and tokenizer...")
     model, tokenizer = initialize_model()
     
@@ -97,6 +116,7 @@ def run_benchmark(num_iterations=10):
         "Our international expansion plans are on track."
     ]
     
+    num_sentences = len(test_sentences)
     batch_sizes = [1, 2, 4, 8, 16]
     results = {}
     
@@ -129,13 +149,20 @@ def run_benchmark(num_iterations=10):
         start_time = time.perf_counter()
         for text in test_sentences:
             process_batch(model, tokenizer, [text], 1)
-        sequential_times.append(time.perf_counter() - start_time)
+        elapsed_time = time.perf_counter() - start_time
+        sequential_times.append(elapsed_time)
     
+    # Calculate throughput for sequential processing
+    sequential_throughputs = [num_sentences / t for t in sequential_times]
     results['sequential'] = {
-        'mean': np.mean(sequential_times),
-        'std': np.std(sequential_times),
-        'min': np.min(sequential_times),
-        'max': np.max(sequential_times)
+        'mean_time': np.mean(sequential_times),
+        'std_time': np.std(sequential_times),
+        'min_time': np.min(sequential_times),
+        'max_time': np.max(sequential_times),
+        'mean_throughput': np.mean(sequential_throughputs),
+        'std_throughput': np.std(sequential_throughputs),
+        'min_throughput': np.min(sequential_throughputs),
+        'max_throughput': np.max(sequential_throughputs)
     }
     
     # Test different batch sizes
@@ -154,39 +181,48 @@ def run_benchmark(num_iterations=10):
             start_time = time.perf_counter()
             for batch in batches:
                 process_batch(model, tokenizer, batch, batch_size)
-            batch_times.append(time.perf_counter() - start_time)
+            elapsed_time = time.perf_counter() - start_time
+            batch_times.append(elapsed_time)
         
+        # Calculate throughput for batch processing
+        batch_throughputs = [num_sentences / t for t in batch_times]
         results[f'batch_{batch_size}'] = {
-            'mean': np.mean(batch_times),
-            'std': np.std(batch_times),
-            'min': np.min(batch_times),
-            'max': np.max(batch_times)
+            'mean_time': np.mean(batch_times),
+            'std_time': np.std(batch_times),
+            'min_time': np.min(batch_times),
+            'max_time': np.max(batch_times),
+            'mean_throughput': np.mean(batch_throughputs),
+            'std_throughput': np.std(batch_throughputs),
+            'min_throughput': np.min(batch_throughputs),
+            'max_throughput': np.max(batch_throughputs)
         }
     
     # Print results
     print("\nBenchmark Results:")
     print("=" * 50)
-    print(f"Number of sentences: {len(test_sentences)}")
+    print(f"Number of sentences: {num_sentences}")
     print(f"Number of iterations: {num_iterations}")
-    print("\nProcessing times (seconds):")
+    print("\nProcessing statistics:")
     print("-" * 50)
     
     # Sequential results
     seq_stats = results['sequential']
     print(f"\nSequential processing:")
-    print(f"  Mean: {seq_stats['mean']:.4f} ± {seq_stats['std']:.4f}")
-    print(f"  Min: {seq_stats['min']:.4f}")
-    print(f"  Max: {seq_stats['max']:.4f}")
+    print(f"  Time: {seq_stats['mean_time']:.4f} ± {seq_stats['std_time']:.4f} seconds")
+    print(f"  Throughput: {seq_stats['mean_throughput']:.2f} ± {seq_stats['std_throughput']:.2f} sentences/second")
+    print(f"  Min throughput: {seq_stats['min_throughput']:.2f} sentences/second")
+    print(f"  Max throughput: {seq_stats['max_throughput']:.2f} sentences/second")
     
     # Batch results
     for batch_size in batch_sizes:
         stats = results[f'batch_{batch_size}']
-        speedup = seq_stats['mean'] / stats['mean']
+        throughput_speedup = stats['mean_throughput'] / seq_stats['mean_throughput']
         print(f"\nBatch size {batch_size}:")
-        print(f"  Mean: {stats['mean']:.4f} ± {stats['std']:.4f}")
-        print(f"  Min: {stats['min']:.4f}")
-        print(f"  Max: {stats['max']:.4f}")
-        print(f"  Speedup vs sequential: {speedup:.2f}x")
+        print(f"  Time: {stats['mean_time']:.4f} ± {stats['std_time']:.4f} seconds")
+        print(f"  Throughput: {stats['mean_throughput']:.2f} ± {stats['std_throughput']:.2f} sentences/second")
+        print(f"  Min throughput: {stats['min_throughput']:.2f} sentences/second")
+        print(f"  Max throughput: {stats['max_throughput']:.2f} sentences/second")
+        print(f"  Throughput speedup vs sequential: {throughput_speedup:.2f}x")
     
     return results
 
