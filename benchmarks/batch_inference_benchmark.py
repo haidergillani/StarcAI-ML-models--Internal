@@ -97,6 +97,7 @@ def run_benchmark(num_iterations=10):
         "Our international expansion plans are on track."
     ]
     
+    num_sentences = len(test_sentences)
     batch_sizes = [1, 2, 4, 8, 16]
     results = {}
     
@@ -129,13 +130,20 @@ def run_benchmark(num_iterations=10):
         start_time = time.perf_counter()
         for text in test_sentences:
             process_batch(model, tokenizer, [text], 1)
-        sequential_times.append(time.perf_counter() - start_time)
+        elapsed_time = time.perf_counter() - start_time
+        sequential_times.append(elapsed_time)
     
+    # Calculate throughput for sequential processing
+    sequential_throughputs = [num_sentences / t for t in sequential_times]
     results['sequential'] = {
-        'mean': np.mean(sequential_times),
-        'std': np.std(sequential_times),
-        'min': np.min(sequential_times),
-        'max': np.max(sequential_times)
+        'mean_time': np.mean(sequential_times),
+        'std_time': np.std(sequential_times),
+        'min_time': np.min(sequential_times),
+        'max_time': np.max(sequential_times),
+        'mean_throughput': np.mean(sequential_throughputs),
+        'std_throughput': np.std(sequential_throughputs),
+        'min_throughput': np.min(sequential_throughputs),
+        'max_throughput': np.max(sequential_throughputs)
     }
     
     # Test different batch sizes
@@ -154,39 +162,48 @@ def run_benchmark(num_iterations=10):
             start_time = time.perf_counter()
             for batch in batches:
                 process_batch(model, tokenizer, batch, batch_size)
-            batch_times.append(time.perf_counter() - start_time)
+            elapsed_time = time.perf_counter() - start_time
+            batch_times.append(elapsed_time)
         
+        # Calculate throughput for batch processing
+        batch_throughputs = [num_sentences / t for t in batch_times]
         results[f'batch_{batch_size}'] = {
-            'mean': np.mean(batch_times),
-            'std': np.std(batch_times),
-            'min': np.min(batch_times),
-            'max': np.max(batch_times)
+            'mean_time': np.mean(batch_times),
+            'std_time': np.std(batch_times),
+            'min_time': np.min(batch_times),
+            'max_time': np.max(batch_times),
+            'mean_throughput': np.mean(batch_throughputs),
+            'std_throughput': np.std(batch_throughputs),
+            'min_throughput': np.min(batch_throughputs),
+            'max_throughput': np.max(batch_throughputs)
         }
     
     # Print results
     print("\nBenchmark Results:")
     print("=" * 50)
-    print(f"Number of sentences: {len(test_sentences)}")
+    print(f"Number of sentences: {num_sentences}")
     print(f"Number of iterations: {num_iterations}")
-    print("\nProcessing times (seconds):")
+    print("\nProcessing statistics:")
     print("-" * 50)
     
     # Sequential results
     seq_stats = results['sequential']
     print(f"\nSequential processing:")
-    print(f"  Mean: {seq_stats['mean']:.4f} ± {seq_stats['std']:.4f}")
-    print(f"  Min: {seq_stats['min']:.4f}")
-    print(f"  Max: {seq_stats['max']:.4f}")
+    print(f"  Time: {seq_stats['mean_time']:.4f} ± {seq_stats['std_time']:.4f} seconds")
+    print(f"  Throughput: {seq_stats['mean_throughput']:.2f} ± {seq_stats['std_throughput']:.2f} sentences/second")
+    print(f"  Min throughput: {seq_stats['min_throughput']:.2f} sentences/second")
+    print(f"  Max throughput: {seq_stats['max_throughput']:.2f} sentences/second")
     
     # Batch results
     for batch_size in batch_sizes:
         stats = results[f'batch_{batch_size}']
-        speedup = seq_stats['mean'] / stats['mean']
+        throughput_speedup = stats['mean_throughput'] / seq_stats['mean_throughput']
         print(f"\nBatch size {batch_size}:")
-        print(f"  Mean: {stats['mean']:.4f} ± {stats['std']:.4f}")
-        print(f"  Min: {stats['min']:.4f}")
-        print(f"  Max: {stats['max']:.4f}")
-        print(f"  Speedup vs sequential: {speedup:.2f}x")
+        print(f"  Time: {stats['mean_time']:.4f} ± {stats['std_time']:.4f} seconds")
+        print(f"  Throughput: {stats['mean_throughput']:.2f} ± {stats['std_throughput']:.2f} sentences/second")
+        print(f"  Min throughput: {stats['min_throughput']:.2f} sentences/second")
+        print(f"  Max throughput: {stats['max_throughput']:.2f} sentences/second")
+        print(f"  Throughput speedup vs sequential: {throughput_speedup:.2f}x")
     
     return results
 
