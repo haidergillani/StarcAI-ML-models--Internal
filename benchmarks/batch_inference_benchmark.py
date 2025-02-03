@@ -3,6 +3,7 @@ import numpy as np
 from huggingface_hub import hf_hub_download
 import onnxruntime
 import sys
+import os
 from pathlib import Path
 
 # Add parent directory to path to import from onnx_inference
@@ -18,7 +19,7 @@ def softmax(x):
     return exp_x / np.sum(exp_x, axis=1, keepdims=True)
 
 def initialize_model():
-    """Initialize model and tokenizer."""
+    """Initialize model and tokenizer with optimized settings."""
     # Download model and vocab
     model_path = hf_hub_download(
         repo_id="MSaadAsad/FinBERT-merged-tone-fls",
@@ -32,11 +33,22 @@ def initialize_model():
     # Initialize tokenizer
     tokenizer = BertTokenizer(vocab_path)
     
-    # Initialize ONNX Runtime session
+    # Initialize ONNX Runtime session with optimized settings
     sess_options = onnxruntime.SessionOptions()
     sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-    sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
+    
+    # Enable parallel execution
+    sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
+    
+    # Set threading options - adjust based on CPU cores
+    num_threads = min(4, os.cpu_count() or 4)  # Use at most 4 threads
+    sess_options.intra_op_num_threads = num_threads
+    sess_options.inter_op_num_threads = num_threads
+    
+    # Memory optimizations
     sess_options.enable_cpu_mem_arena = True
+    sess_options.enable_mem_pattern = True
+    sess_options.enable_mem_reuse = True
     
     # Create session
     model = onnxruntime.InferenceSession(
@@ -47,21 +59,28 @@ def initialize_model():
     
     return model, tokenizer
 
-def process_batch(model, tokenizer, texts, batch_size):
-    """Process a batch of texts."""
+def process_batch(model, tokenizer, texts, max_length=512):
+    """Process a batch of texts with optimized memory handling."""
+    batch_size = len(texts)
+    
+    # Pre-allocate numpy arrays for the batch
+    input_ids = np.zeros((batch_size, max_length), dtype=np.int64)
+    attention_mask = np.zeros((batch_size, max_length), dtype=np.int64)
+    token_type_ids = np.zeros((batch_size, max_length), dtype=np.int64)
+    
+    # Tokenize all texts at once and fill pre-allocated arrays
+    for i, text in enumerate(texts):
+        encoded = tokenizer.encode(text, max_length)
+        input_ids[i] = encoded['input_ids'][0]
+        attention_mask[i] = encoded['attention_mask'][0]
+        token_type_ids[i] = encoded['token_type_ids'][0]
+    
+    # Create batch inputs once
     batch_inputs = {
-        'input_ids': [],
-        'attention_mask': [],
-        'token_type_ids': []
+        'input_ids': input_ids,
+        'attention_mask': attention_mask,
+        'token_type_ids': token_type_ids
     }
-    
-    for text in texts:
-        inputs = tokenizer.encode(text, max_length=512)
-        for k in batch_inputs:
-            batch_inputs[k].append(inputs[k][0])
-    
-    # Convert to numpy arrays
-    batch_inputs = {k: np.array(v) for k, v in batch_inputs.items()}
     
     # Run inference
     outputs = model.run(None, batch_inputs)
@@ -73,7 +92,7 @@ def process_batch(model, tokenizer, texts, batch_size):
     
     return tone_probs, fls_probs
 
-def run_benchmark(num_iterations=10):
+def run_benchmark(num_iterations=50):
     print("Initializing model and tokenizer...")
     model, tokenizer = initialize_model()
     
