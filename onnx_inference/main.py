@@ -73,15 +73,18 @@ def process_batch(texts, batch_size=2, max_length=512):
     """Process a batch of texts with optimized memory handling."""
     results = []
     
-    # Process texts in batches
+    # Add padding text if we have odd number of texts
+    if len(texts) % 2 != 0:
+        texts = texts + [""]  # Add empty text for padding
+    
+    # Process texts in batches of 2
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
-        current_batch_size = len(batch)
         
         # Pre-allocate numpy arrays for the batch
-        input_ids = np.zeros((current_batch_size, max_length), dtype=np.int64)
-        attention_mask = np.zeros((current_batch_size, max_length), dtype=np.int64)
-        token_type_ids = np.zeros((current_batch_size, max_length), dtype=np.int64)
+        input_ids = np.zeros((batch_size, max_length), dtype=np.int64)
+        attention_mask = np.zeros((batch_size, max_length), dtype=np.int64)
+        token_type_ids = np.zeros((batch_size, max_length), dtype=np.int64)
         
         # Tokenize all texts at once and fill pre-allocated arrays
         for j, text in enumerate(batch):
@@ -105,18 +108,19 @@ def process_batch(texts, batch_size=2, max_length=512):
         tone_probs = softmax(tone_logits)
         fls_probs = softmax(fls_logits)
         
-        # Format results
-        for tone_prob, fls_prob in zip(tone_probs, fls_probs):
-            results.append({
-                'tone': {
-                    label: float(prob)
-                    for label, prob in zip(tone_labels, tone_prob)
-                },
-                'fls': {
-                    label: float(prob)
-                    for label, prob in zip(fls_labels, fls_prob)
-                }
-            })
+        # Format results, but skip the padding result
+        for k, (tone_prob, fls_prob) in enumerate(zip(tone_probs, fls_probs)):
+            if i + k < len(texts) - (1 if len(texts) % 2 != 0 else 0):  # Skip padding result
+                results.append({
+                    'tone': {
+                        label: float(prob)
+                        for label, prob in zip(tone_labels, tone_prob)
+                    },
+                    'fls': {
+                        label: float(prob)
+                        for label, prob in zip(fls_labels, fls_prob)
+                    }
+                })
     
     return results
 
